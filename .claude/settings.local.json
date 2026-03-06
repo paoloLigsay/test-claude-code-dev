@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:cursor.com)",
+      "Bash(npx skills find \"drag and drop react\")"
+    ]
+  }
+}
