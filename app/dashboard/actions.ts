@@ -166,6 +166,62 @@ async function checkIsDescendant(
   return false;
 }
 
+export async function searchItems(query: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { folders: [], documents: [] };
+
+  const pattern = `%${query}%`;
+
+  const [foldersResult, docsResult] = await Promise.all([
+    supabase
+      .from("folders")
+      .select("*")
+      .eq("user_id", user.id)
+      .ilike("name", pattern)
+      .order("name")
+      .limit(10),
+    supabase
+      .from("documents")
+      .select("*")
+      .eq("user_id", user.id)
+      .ilike("name", pattern)
+      .order("name")
+      .limit(10),
+  ]);
+
+  return {
+    folders: foldersResult.data ?? [],
+    documents: docsResult.data ?? [],
+  };
+}
+
+export async function getFolderPath(folderId: string): Promise<string[]> {
+  const supabase = await createClient();
+  const path: string[] = [];
+  let currentId: string | null = folderId;
+  const MAX_DEPTH = 50;
+  let depth = 0;
+
+  while (currentId && depth++ < MAX_DEPTH) {
+    path.unshift(currentId);
+    const row = await supabase
+      .from("folders")
+      .select("parent_id")
+      .eq("id", currentId)
+      .single() as { data: { parent_id: string | null } | null; error: unknown };
+
+    if (row.error || !row.data) break;
+
+    currentId = row.data.parent_id;
+  }
+
+  return path;
+}
+
 // Recursively collect all document storage paths under a folder
 async function collectSubtreeStoragePaths(
   folderId: string

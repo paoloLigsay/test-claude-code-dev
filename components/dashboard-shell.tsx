@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Group, Panel, Separator } from "react-resizable-panels";
 import { Sidebar } from "./sidebar";
 import { FileViewer } from "./file-viewer";
 import { FileUpload } from "./file-upload";
 import { MoveDialog } from "./move-dialog";
+import { SearchModal } from "./search-modal";
 import { createClient } from "@/utils/supabase/client";
 import type { Folder, Document } from "@/types";
 
@@ -39,6 +40,34 @@ export function DashboardShell({ initialFolders }: Props) {
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [moveTarget, setMoveTarget] = useState<MoveTarget | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [revealPath, setRevealPath] = useState<string[]>([]);
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  const handleSearchSelectFolder = useCallback(async (folder: Folder) => {
+    const { getFolderPath } = await import("@/app/dashboard/actions");
+    const path = await getFolderPath(folder.id);
+    setRevealPath(path);
+    setSelectedFolderId(folder.id);
+  }, []);
+
+  const handleSearchSelectDocument = useCallback(async (doc: Document) => {
+    const { getFolderPath } = await import("@/app/dashboard/actions");
+    const path = await getFolderPath(doc.folder_id);
+    setRevealPath(path);
+    setSelectedDocument(doc);
+    setSelectedFolderId(doc.folder_id);
+  }, []);
 
   function refreshRootFolders() {
     queryClient.invalidateQueries({ queryKey: ["root-folders"] });
@@ -60,11 +89,13 @@ export function DashboardShell({ initialFolders }: Props) {
           <Sidebar
             folders={rootFolders}
             selectedDocumentId={selectedDocument?.id ?? null}
+            selectedFolderId={selectedFolderId}
             uploadFolderId={selectedFolderId}
             onSelectDocument={handleSelectDocument}
             onFolderMutated={refreshRootFolders}
             onRequestMove={handleRequestMove}
             onSelectFolder={setSelectedFolderId}
+            revealPath={revealPath}
           />
         </Panel>
         <Separator className="w-[1px] bg-neutral-700/50 hover:bg-brand/50 focus:outline-none data-[resize-handle-active]:bg-brand/50 transition-colors cursor-col-resize" />
@@ -88,6 +119,13 @@ export function DashboardShell({ initialFolders }: Props) {
           </div>
         </Panel>
       </Group>
+
+      <SearchModal
+        open={searchOpen}
+        onClose={() => setSearchOpen(false)}
+        onSelectFolder={handleSearchSelectFolder}
+        onSelectDocument={handleSearchSelectDocument}
+      />
 
       {moveTarget && (
         <MoveDialog

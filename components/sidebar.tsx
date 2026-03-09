@@ -12,20 +12,24 @@ import type { Folder, Document } from "@/types";
 type Props = {
   folders: Folder[];
   selectedDocumentId: string | null;
+  selectedFolderId: string | null;
   uploadFolderId: string | null;
   onSelectDocument: (doc: Document) => void;
   onFolderMutated: () => void;
   onRequestMove: (type: "folder" | "document", id: string, name: string) => void;
   onSelectFolder: (folderId: string) => void;
+  revealPath: string[];
 };
 
 export function Sidebar({
   folders,
   selectedDocumentId,
+  selectedFolderId,
   onSelectDocument,
   onFolderMutated,
   onRequestMove,
   onSelectFolder,
+  revealPath,
 }: Props) {
   const [isCreating, setIsCreating] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
@@ -74,9 +78,11 @@ export function Sidebar({
         <FolderTree
           folders={folders}
           selectedDocumentId={selectedDocumentId}
+          selectedFolderId={selectedFolderId}
           onSelectDocument={onSelectDocument}
           onFolderMutated={onFolderMutated}
           onRequestMove={onRequestMove}
+          revealPath={revealPath}
         />
       </div>
 

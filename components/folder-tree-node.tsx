@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   ChevronRight,
   ChevronDown,
@@ -34,9 +34,11 @@ type Props = {
   depth: number;
   ancestorIds: string[];
   selectedDocumentId: string | null;
+  selectedFolderId: string | null;
   onSelectDocument: (doc: Document) => void;
   onFolderMutated: () => void;
   onRequestMove: (type: "folder" | "document", id: string, name: string) => void;
+  revealPath: string[];
 };
 
 export function FolderTreeNode({
@@ -44,9 +46,11 @@ export function FolderTreeNode({
   depth,
   ancestorIds,
   selectedDocumentId,
+  selectedFolderId,
   onSelectDocument,
   onFolderMutated,
   onRequestMove,
+  revealPath,
 }: Props) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
@@ -62,6 +66,24 @@ export function FolderTreeNode({
     folder.id,
     isExpanded
   );
+
+  const isInRevealPath = revealPath.includes(folder.id);
+  const isSelected = selectedFolderId === folder.id;
+  const nodeRef = useRef<HTMLDivElement>(null);
+  const prevRevealPathRef = useRef<string[]>([]);
+
+  useEffect(() => {
+    if (isInRevealPath && !isExpanded && revealPath !== prevRevealPathRef.current) {
+      setIsExpanded(true);
+    }
+    prevRevealPathRef.current = revealPath;
+  }, [revealPath, isInRevealPath]);
+
+  useEffect(() => {
+    if (isSelected && revealPath.length > 0 && revealPath[revealPath.length - 1] === folder.id) {
+      nodeRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+  }, [isSelected, revealPath]);
 
   function toggleExpand() {
     setIsExpanded(!isExpanded);
@@ -221,6 +243,7 @@ export function FolderTreeNode({
   return (
     <div>
       <div
+        ref={nodeRef}
         draggable
         onDragStart={handleFolderDragStart}
         onDragEnd={handleDragEnd}
@@ -230,7 +253,9 @@ export function FolderTreeNode({
         className={`group flex items-center gap-1 py-1 px-2 rounded-lg cursor-pointer transition-colors ${
           isDragOver
             ? "bg-brand-muted"
-            : "hover:bg-white/[0.04]"
+            : isSelected
+              ? "bg-white/[0.08]"
+              : "hover:bg-white/[0.04]"
         }`}
         style={{ paddingLeft: `${depth * 16 + 8}px` }}
       >
@@ -365,12 +390,14 @@ export function FolderTreeNode({
               depth={depth + 1}
               ancestorIds={[...ancestorIds, folder.id]}
               selectedDocumentId={selectedDocumentId}
+              selectedFolderId={selectedFolderId}
               onSelectDocument={onSelectDocument}
               onFolderMutated={() => {
                 queryClient.invalidateQueries({ queryKey: ["folder-contents", folder.id] });
                 onFolderMutated();
               }}
               onRequestMove={onRequestMove}
+              revealPath={revealPath}
             />
           ))}
 

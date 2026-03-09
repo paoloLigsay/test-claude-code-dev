@@ -25,9 +25,11 @@ export function useDragContext() {
 type Props = {
   folders: Folder[];
   selectedDocumentId: string | null;
+  selectedFolderId: string | null;
   onSelectDocument: (doc: Document) => void;
   onFolderMutated: () => void;
   onRequestMove: (type: "folder" | "document", id: string, name: string) => void;
+  revealPath: string[];
 };
 
 const DRAG_MIME = "application/x-dms-item";
@@ -35,9 +37,11 @@ const DRAG_MIME = "application/x-dms-item";
 export function FolderTree({
   folders,
   selectedDocumentId,
+  selectedFolderId,
   onSelectDocument,
   onFolderMutated,
   onRequestMove,
+  revealPath,
 }: Props) {
   const [drag, setDrag] = useState<DragState>({ draggedId: null, draggedType: null });
   const queryClient = useQueryClient();
@@ -92,9 +96,11 @@ export function FolderTree({
             depth={0}
             ancestorIds={[]}
             selectedDocumentId={selectedDocumentId}
+            selectedFolderId={selectedFolderId}
             onSelectDocument={onSelectDocument}
             onFolderMutated={onFolderMutated}
             onRequestMove={onRequestMove}
+            revealPath={revealPath}
           />
         ))}
       </div>
