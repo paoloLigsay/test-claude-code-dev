@@ -10,7 +10,11 @@ Do the following steps:
 4. Run `git diff <base>...HEAD` to read the actual changes.
 5. Read the PR template at `.github/pull_request_template.md`.
 6. Draft a PR title and body that follows the template structure:
-   - **Title**: short, under 70 characters, imperative mood (e.g. "Add folder search", "Fix auth redirect loop").
+   - **Title**: prefixed with a conventional type, short, under 70 characters, imperative mood. Choose the prefix based on the nature of the changes:
+     - `feat:` — new functionality or capability (e.g. "feat: add folder search")
+     - `fix:` — bug fix (e.g. "fix: auth redirect loop")
+     - `chore:` — tooling, config, deps, CI, refactors, or anything that doesn't change app behavior (e.g. "chore: add prettier and husky")
+     - `hotfix:` — urgent production fix (e.g. "hotfix: prevent data loss on concurrent saves")
    - **Summary**: 1-3 bullets explaining what and why, not how.
    - **Changes**: specific changes grouped by area if touching multiple parts.
    - **Testing**: concrete checklist of what to verify.

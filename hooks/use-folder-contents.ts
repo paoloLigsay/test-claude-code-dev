@@ -33,7 +33,9 @@ export function useInvalidateFolderContents() {
 
   return (folderId: string | null) => {
     if (folderId) {
-      queryClient.invalidateQueries({ queryKey: ["folder-contents", folderId] });
+      queryClient.invalidateQueries({
+        queryKey: ["folder-contents", folderId],
+      });
     }
     queryClient.invalidateQueries({ queryKey: ["root-folders"] });
   };

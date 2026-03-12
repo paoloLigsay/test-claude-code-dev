@@ -33,7 +33,7 @@ export function LoginForm() {
   }
 
   return (
-    <div className="flex flex-col gap-4 w-full max-w-sm">
+    <div className="flex w-full max-w-sm flex-col gap-4">
       <Button
         type="button"
         variant="default"
@@ -42,7 +42,7 @@ export function LoginForm() {
         onClick={handleGoogleSignIn}
         className="w-full"
       >
-        <svg viewBox="0 0 24 24" className="w-4 h-4" aria-hidden="true">
+        <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">
           <path
             d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
             fill="#4285F4"
@@ -70,41 +70,35 @@ export function LoginForm() {
       </div>
 
       <form action={formAction} className="flex flex-col gap-4">
-      <div className="flex flex-col gap-1">
-        <label htmlFor="email" className="text-sm font-medium text-neutral-400">
-          Email
-        </label>
-        <Input
-          id="email"
-          name="email"
-          type="email"
-          required
-        />
-      </div>
-      <div className="flex flex-col gap-1">
-        <label htmlFor="password" className="text-sm font-medium text-neutral-400">
-          Password
-        </label>
-        <Input
-          id="password"
-          name="password"
-          type="password"
-          required
-        />
-      </div>
-      {state?.error && (
-        <p className="text-sm text-red-400">{state.error}</p>
-      )}
-      <Button type="submit" variant="primary" size="lg" disabled={pending}>
-        {pending ? "Signing in..." : "Sign in"}
-      </Button>
-      <p className="text-sm text-neutral-500 text-center">
-        Don&apos;t have an account?{" "}
-        <Link href="/signup" className="text-brand hover:text-brand-hover">
-          Sign up
-        </Link>
-      </p>
-    </form>
+        <div className="flex flex-col gap-1">
+          <label
+            htmlFor="email"
+            className="text-sm font-medium text-neutral-400"
+          >
+            Email
+          </label>
+          <Input id="email" name="email" type="email" required />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label
+            htmlFor="password"
+            className="text-sm font-medium text-neutral-400"
+          >
+            Password
+          </label>
+          <Input id="password" name="password" type="password" required />
+        </div>
+        {state?.error && <p className="text-sm text-red-400">{state.error}</p>}
+        <Button type="submit" variant="primary" size="lg" disabled={pending}>
+          {pending ? "Signing in..." : "Sign in"}
+        </Button>
+        <p className="text-center text-sm text-neutral-500">
+          Don&apos;t have an account?{" "}
+          <Link href="/signup" className="text-brand hover:text-brand-hover">
+            Sign up
+          </Link>
+        </p>
+      </form>
     </div>
   );
 }

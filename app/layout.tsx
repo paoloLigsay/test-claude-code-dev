@@ -14,7 +14,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="dark">
-      <body className="antialiased bg-neutral-900 text-neutral-200">
+      <body className="bg-neutral-900 text-neutral-200 antialiased">
         <QueryProvider>{children}</QueryProvider>
       </body>
     </html>
