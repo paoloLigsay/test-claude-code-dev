@@ -213,6 +213,74 @@ export async function getFolderPath(folderId: string): Promise<string[]> {
   return path;
 }
 
+export async function createEmptyFile(name: string, folderId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "Not authenticated" };
+
+  const ext = name.includes(".") ? name.split(".").pop() : "txt";
+  const storagePath = `${user.id}/${crypto.randomUUID()}.${ext}`;
+
+  const emptyBlob = new Blob([""], { type: "text/plain" });
+  const { error: uploadError } = await supabase.storage
+    .from("documents")
+    .upload(storagePath, emptyBlob);
+
+  if (uploadError) return { error: uploadError.message };
+
+  const { data, error } = await supabase
+    .from("documents")
+    .insert({
+      user_id: user.id,
+      folder_id: folderId,
+      name,
+      storage_path: storagePath,
+      mime_type: "text/plain",
+      size_bytes: 0,
+    })
+    .select()
+    .single();
+
+  if (error) return { error: error.message };
+  return { data };
+}
+
+export async function saveFileContent(
+  documentId: string,
+  storagePath: string,
+  content: string
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "Not authenticated" };
+
+  const blob = new Blob([content], { type: "text/plain" });
+
+  const { error: uploadError } = await supabase.storage
+    .from("documents")
+    .upload(storagePath, blob, { upsert: true });
+
+  if (uploadError) return { error: uploadError.message };
+
+  const { error } = await supabase
+    .from("documents")
+    .update({
+      size_bytes: new TextEncoder().encode(content).length,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", documentId)
+    .eq("user_id", user.id);
+
+  if (error) return { error: error.message };
+  return { success: true };
+}
+
 // Recursively collect all document storage paths under a folder
 async function collectSubtreeStoragePaths(folderId: string): Promise<string[]> {
   const supabase = await createClient();

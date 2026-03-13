@@ -17,6 +17,8 @@ Document management system with nested folders and file upload/preview.
 - `uploadDocument(formData)` — uploads file to Supabase Storage at `userId/uuid.ext`, creates DB record.
 - `deleteDocument(documentId, storagePath)` — removes from Storage and DB.
 - `moveDocument(documentId, newFolderId)` — updates folder reference.
+- `createEmptyFile(name, folderId)` — creates an empty text file in Storage and DB.
+- `saveFileContent(documentId, storagePath, content)` — overwrites file content in Storage, updates `size_bytes` and `updated_at`.
 
 ## Internal Helpers
 

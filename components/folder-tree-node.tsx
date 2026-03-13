@@ -9,6 +9,7 @@ import {
   FileText,
   MoreHorizontal,
   FolderPlus,
+  FilePlus,
   Trash2,
   PenLine,
   Move,
@@ -62,6 +63,8 @@ export function FolderTreeNode({
   const [renameValue, setRenameValue] = useState(folder.name);
   const [isCreatingSubfolder, setIsCreatingSubfolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
+  const [isCreatingFile, setIsCreatingFile] = useState(false);
+  const [newFileName, setNewFileName] = useState("");
   const [isDragOver, setIsDragOver] = useState(false);
   const queryClient = useQueryClient();
   const { drag, setDrag } = useDragContext();
@@ -247,6 +250,24 @@ export function FolderTreeNode({
     }
   }
 
+  async function handleCreateFile() {
+    if (!newFileName.trim()) {
+      setIsCreatingFile(false);
+      return;
+    }
+    const { createEmptyFile } = await import("@/app/dashboard/actions");
+    const result = await createEmptyFile(newFileName.trim(), folder.id);
+    if (!result.error && result.data) {
+      setNewFileName("");
+      setIsCreatingFile(false);
+      queryClient.invalidateQueries({
+        queryKey: ["folder-contents", folder.id],
+      });
+      setIsExpanded(true);
+      onSelectDocument(result.data);
+    }
+  }
+
   async function handleDeleteDocument(doc: Document) {
     const queryKey = ["folder-contents", folder.id];
     const previousData = queryClient.getQueryData<FolderContents>(queryKey);
@@ -349,6 +370,16 @@ export function FolderTreeNode({
                 New subfolder
               </MenuItem>
               <MenuItem
+                icon={<FilePlus className="h-3.5 w-3.5" />}
+                onClick={() => {
+                  setShowMenu(false);
+                  setIsCreatingFile(true);
+                  setIsExpanded(true);
+                }}
+              >
+                New file
+              </MenuItem>
+              <MenuItem
                 icon={<PenLine className="h-3.5 w-3.5" />}
                 onClick={() => {
                   setShowMenu(false);
@@ -408,6 +439,28 @@ export function FolderTreeNode({
                   if (e.key === "Escape") setIsCreatingSubfolder(false);
                 }}
                 placeholder="Folder name"
+                autoFocus
+                inputSize="sm"
+                className="max-w-[160px]"
+              />
+            </div>
+          )}
+
+          {isCreatingFile && (
+            <div
+              className="flex items-center gap-1.5 py-1"
+              style={{ paddingLeft: `${(depth + 1) * 16 + 24}px` }}
+            >
+              <FileText className="h-4 w-4 shrink-0 text-neutral-500" />
+              <Input
+                value={newFileName}
+                onChange={(e) => setNewFileName(e.target.value)}
+                onBlur={handleCreateFile}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleCreateFile();
+                  if (e.key === "Escape") setIsCreatingFile(false);
+                }}
+                placeholder="filename.txt"
                 autoFocus
                 inputSize="sm"
                 className="max-w-[160px]"

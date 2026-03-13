@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Group, Panel, Separator } from "react-resizable-panels";
 import { Sidebar } from "./sidebar";
-import { FileViewer } from "./file-viewer";
+import { FileViewer, FileViewerHandle } from "./file-viewer";
 import { FileUpload } from "./file-upload";
+import { NewFileButton } from "./new-file-button";
 import { MoveDialog } from "./move-dialog";
 import { SearchModal } from "./search-modal";
 import { createClient } from "@/utils/supabase/client";
@@ -44,6 +45,7 @@ export function DashboardShell({ initialFolders }: Props) {
   const [moveTarget, setMoveTarget] = useState<MoveTarget | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [revealPath, setRevealPath] = useState<string[]>([]);
+  const fileViewerRef = useRef<FileViewerHandle>(null);
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -64,6 +66,7 @@ export function DashboardShell({ initialFolders }: Props) {
   }, []);
 
   const handleSearchSelectDocument = useCallback(async (doc: Document) => {
+    await fileViewerRef.current?.save();
     const { getFolderPath } = await import("@/app/dashboard/actions");
     const path = await getFolderPath(doc.folder_id);
     setRevealPath(path);
@@ -75,7 +78,8 @@ export function DashboardShell({ initialFolders }: Props) {
     queryClient.invalidateQueries({ queryKey: ["root-folders"] });
   }
 
-  function handleSelectDocument(doc: Document) {
+  async function handleSelectDocument(doc: Document) {
+    await fileViewerRef.current?.save();
     setSelectedDocument(doc);
     setSelectedFolderId(doc.folder_id);
   }
@@ -108,7 +112,7 @@ export function DashboardShell({ initialFolders }: Props) {
         <Panel defaultSize="80%">
           <div className="flex h-full flex-col bg-[#202020]">
             {selectedFolderId && (
-              <div className="border-b border-neutral-700/50 px-4 py-2">
+              <div className="flex gap-2 border-b border-neutral-700/50 px-4 py-2">
                 <FileUpload
                   folderId={selectedFolderId}
                   onUploadComplete={() => {
@@ -117,10 +121,19 @@ export function DashboardShell({ initialFolders }: Props) {
                     });
                   }}
                 />
+                <NewFileButton
+                  folderId={selectedFolderId}
+                  onCreated={(doc) => {
+                    queryClient.invalidateQueries({
+                      queryKey: ["folder-contents", selectedFolderId],
+                    });
+                    setSelectedDocument(doc);
+                  }}
+                />
               </div>
             )}
             <div className="flex-1">
-              <FileViewer document={selectedDocument} />
+              <FileViewer ref={fileViewerRef} document={selectedDocument} />
             </div>
           </div>
         </Panel>
