@@ -43,7 +43,7 @@ Client Component. Recursive node for individual folders.
 - Expandable with lazy-loaded children via `useFolderContents`.
 - Auto-expands when included in `revealPath` (from search).
 - Highlights when `selectedFolderId` matches.
-- Context menu (right-click): rename, delete, move, create subfolder.
+- Context menu (right-click): rename, delete, move, create subfolder, new file.
 - Drag source and drop target for folders and documents.
 - Shows documents within expanded folders.
 
@@ -60,13 +60,23 @@ Client Component. Single-file upload button.
 
 ### FileViewer (`file-viewer.tsx`)
 
-Client Component. Right panel file preview.
+Client Component. Right panel file preview and editor.
 
-- Props: `{ document: Document | null }`.
+- Props: `{ document: Document | null }`. Exposes `FileViewerHandle` ref with `save()` method.
 - Fetches signed URL via React Query (1hr expiry, 30min stale time).
-- Renders based on MIME type: `<img>` for images, `<iframe>` for PDFs, `<pre>` for text files.
+- Renders based on MIME type: `<img>` for images, `<iframe>` for PDFs, editable `<textarea>` for text files.
+- Text files are inline-editable. Shows "Save" button when content is dirty. "(unsaved)" indicator in file size area.
+- Auto-saves via ref when switching documents (called by DashboardShell).
 - Shows download button and file size.
 - Empty state when no document selected.
+
+### NewFileButton (`new-file-button.tsx`)
+
+Client Component. Inline file creation button.
+
+- Props: `{ folderId, onCreated }`.
+- Shows a name input on click, calls `createEmptyFile` Server Action.
+- Created file is auto-selected in the viewer.
 
 ### MoveDialog (`move-dialog.tsx`)
 

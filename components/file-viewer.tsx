@@ -1,8 +1,16 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import {
+  useState,
+  useEffect,
+  useTransition,
+  useImperativeHandle,
+  useCallback,
+  forwardRef,
+} from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/utils/supabase/client";
-import { FileText, Download } from "lucide-react";
+import { FileText, Download, Sparkles, Save } from "lucide-react";
 import { Button } from "./ui/button";
 import type { Document } from "@/types";
 
@@ -10,92 +18,193 @@ type Props = {
   document: Document | null;
 };
 
+export type FileViewerHandle = {
+  save: () => Promise<void>;
+};
+
 type SignedUrlData = {
   signedUrl: string;
   textContent: string | null;
 };
 
-export function FileViewer({ document }: Props) {
-  const { data, isLoading } = useQuery<SignedUrlData | null>({
-    queryKey: ["signed-url", document?.storage_path],
-    queryFn: async () => {
-      if (!document) return null;
+export const FileViewer = forwardRef<FileViewerHandle, Props>(
+  function FileViewer({ document }, ref) {
+    const queryClient = useQueryClient();
+    const [polishing, startPolishTransition] = useTransition();
+    const [editedContent, setEditedContent] = useState<string | null>(null);
+    const [saving, startSaveTransition] = useTransition();
 
-      const supabase = createClient();
-      const { data } = await supabase.storage
-        .from("documents")
-        .createSignedUrl(document.storage_path, 3600);
+    const { data, isLoading } = useQuery<SignedUrlData | null>({
+      queryKey: ["signed-url", document?.storage_path],
+      queryFn: async () => {
+        if (!document) return null;
 
-      if (!data?.signedUrl) return null;
+        const supabase = createClient();
+        const { data } = await supabase.storage
+          .from("documents")
+          .createSignedUrl(document.storage_path, 3600);
 
-      let textContent: string | null = null;
-      if (document.mime_type.startsWith("text/")) {
-        const response = await fetch(data.signedUrl);
-        textContent = await response.text();
+        if (!data?.signedUrl) return null;
+
+        let textContent: string | null = null;
+        if (document.mime_type.startsWith("text/")) {
+          const response = await fetch(data.signedUrl);
+          textContent = await response.text();
+        }
+
+        return { signedUrl: data.signedUrl, textContent };
+      },
+      enabled: !!document,
+      staleTime: 30 * 60 * 1000,
+    });
+
+    const originalContent = data?.textContent ?? null;
+    const isTextFile = document?.mime_type.startsWith("text/") ?? false;
+    const isDirty =
+      isTextFile && editedContent !== null && editedContent !== originalContent;
+
+    useEffect(() => {
+      setEditedContent(null);
+    }, [document?.id]);
+
+    const save = useCallback(async () => {
+      if (!document || !isDirty || editedContent === null) return;
+
+      const { saveFileContent } = await import("@/app/dashboard/actions");
+      const result = await saveFileContent(
+        document.id,
+        document.storage_path,
+        editedContent
+      );
+
+      if (result.error) {
+        console.error("Save failed:", result.error);
+        return;
       }
 
-      return { signedUrl: data.signedUrl, textContent };
-    },
-    enabled: !!document,
-    staleTime: 30 * 60 * 1000,
-  });
+      queryClient.setQueryData<SignedUrlData | null>(
+        ["signed-url", document.storage_path],
+        (old) => (old ? { ...old, textContent: editedContent } : old)
+      );
+      setEditedContent(null);
+    }, [document, isDirty, editedContent, queryClient]);
 
-  if (!document) {
-    return (
-      <div className="flex h-full flex-col items-center justify-center text-neutral-500">
-        <FileText className="mb-2 h-12 w-12" />
-        <p className="text-sm">Select a file to view</p>
-      </div>
-    );
-  }
+    useImperativeHandle(ref, () => ({ save }), [save]);
 
-  if (isLoading) {
-    return (
-      <div className="flex h-full items-center justify-center text-neutral-500">
-        <p className="text-sm">Loading...</p>
-      </div>
-    );
-  }
+    function handleSave() {
+      startSaveTransition(() => save());
+    }
 
-  const signedUrl = data?.signedUrl ?? null;
-  const textContent = data?.textContent ?? null;
+    function handlePolish() {
+      if (!document) return;
 
-  return (
-    <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between border-b border-neutral-700/50 px-4 py-3">
-        <div>
-          <h2 className="text-sm font-medium text-neutral-200">
-            {document.name}
-          </h2>
-          <p className="text-xs text-neutral-500">
-            {formatFileSize(document.size_bytes)}
-          </p>
+      startPolishTransition(async () => {
+        const { polishDocument } = await import("@/app/dashboard/ai-actions");
+        const result = await polishDocument(
+          document.id,
+          document.storage_path,
+          document.mime_type
+        );
+
+        if (result.error) {
+          console.error("Polish failed:", result.error);
+          return;
+        }
+
+        queryClient.setQueryData<SignedUrlData | null>(
+          ["signed-url", document.storage_path],
+          (old) => (old ? { ...old, textContent: result.data ?? null } : old)
+        );
+        setEditedContent(null);
+      });
+    }
+
+    if (!document) {
+      return (
+        <div className="flex h-full flex-col items-center justify-center text-neutral-500">
+          <FileText className="mb-2 h-12 w-12" />
+          <p className="text-sm">Select a file to view</p>
         </div>
-        {signedUrl && (
-          <a href={signedUrl} download={document.name}>
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={<Download className="h-4 w-4" />}
-            >
-              Download
-            </Button>
-          </a>
-        )}
-      </div>
+      );
+    }
 
-      <div className="flex-1 overflow-auto p-4">
-        {renderContent(document.mime_type, signedUrl, textContent)}
-      </div>
-    </div>
-  );
-}
+    if (isLoading) {
+      return (
+        <div className="flex h-full items-center justify-center text-neutral-500">
+          <p className="text-sm">Loading...</p>
+        </div>
+      );
+    }
 
-function renderContent(
-  mimeType: string,
-  url: string | null,
-  textContent: string | null
-) {
+    const signedUrl = data?.signedUrl ?? null;
+    const displayContent = editedContent ?? originalContent;
+
+    return (
+      <div className="flex h-full flex-col">
+        <div className="flex items-center justify-between border-b border-neutral-700/50 px-4 py-3">
+          <div>
+            <h2 className="text-sm font-medium text-neutral-200">
+              {document.name}
+            </h2>
+            <p className="text-xs text-neutral-500">
+              {formatFileSize(document.size_bytes)}
+              {isDirty && " (unsaved)"}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            {isTextFile && isDirty && (
+              <Button
+                variant="primary"
+                size="sm"
+                icon={<Save size={14} />}
+                onClick={handleSave}
+                disabled={saving}
+              >
+                {saving ? "Saving..." : "Save"}
+              </Button>
+            )}
+            {isTextFile && (
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={<Sparkles size={14} />}
+                onClick={handlePolish}
+                disabled={polishing || isDirty}
+              >
+                {polishing ? "Polishing..." : "Polish"}
+              </Button>
+            )}
+            {signedUrl && (
+              <a href={signedUrl} download={document.name}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={<Download className="h-4 w-4" />}
+                >
+                  Download
+                </Button>
+              </a>
+            )}
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-auto p-4">
+          {isTextFile ? (
+            <textarea
+              className="h-full w-full resize-none rounded-lg border border-neutral-700 bg-neutral-800 p-4 font-mono text-sm text-neutral-300 outline-none focus:border-neutral-600"
+              value={displayContent ?? ""}
+              onChange={(e) => setEditedContent(e.target.value)}
+            />
+          ) : (
+            renderContent(document.mime_type, signedUrl)
+          )}
+        </div>
+      </div>
+    );
+  }
+);
+
+function renderContent(mimeType: string, url: string | null) {
   if (!url) return null;
 
   if (mimeType.startsWith("image/")) {
@@ -111,14 +220,6 @@ function renderContent(
   if (mimeType === "application/pdf") {
     return (
       <iframe src={url} className="h-full w-full border-0" title="PDF viewer" />
-    );
-  }
-
-  if (mimeType.startsWith("text/") && textContent !== null) {
-    return (
-      <pre className="whitespace-pre-wrap rounded-lg border border-neutral-700 bg-neutral-800 p-4 font-mono text-sm text-neutral-300">
-        {textContent}
-      </pre>
     );
   }
 
