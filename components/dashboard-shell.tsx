@@ -37,7 +37,9 @@ export function DashboardShell({ initialFolders }: Props) {
     initialData: initialFolders,
   });
 
-  const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
+  const [selectedDocument, setSelectedDocument] = useState<Document | null>(
+    null
+  );
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [moveTarget, setMoveTarget] = useState<MoveTarget | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -78,7 +80,11 @@ export function DashboardShell({ initialFolders }: Props) {
     setSelectedFolderId(doc.folder_id);
   }
 
-  function handleRequestMove(type: "folder" | "document", id: string, name: string) {
+  function handleRequestMove(
+    type: "folder" | "document",
+    id: string,
+    name: string
+  ) {
     setMoveTarget({ type, id, name });
   }
 
@@ -98,9 +104,9 @@ export function DashboardShell({ initialFolders }: Props) {
             revealPath={revealPath}
           />
         </Panel>
-        <Separator className="w-[1px] bg-neutral-700/50 hover:bg-brand/50 focus:outline-none data-[resize-handle-active]:bg-brand/50 transition-colors cursor-col-resize" />
+        <Separator className="hover:bg-brand/50 data-[resize-handle-active]:bg-brand/50 w-[1px] cursor-col-resize bg-neutral-700/50 transition-colors focus:outline-none" />
         <Panel defaultSize="80%">
-          <div className="flex flex-col h-full bg-[#202020]">
+          <div className="flex h-full flex-col bg-[#202020]">
             {selectedFolderId && (
               <div className="border-b border-neutral-700/50 px-4 py-2">
                 <FileUpload

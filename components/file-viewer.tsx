@@ -42,8 +42,8 @@ export function FileViewer({ document }: Props) {
 
   if (!document) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-neutral-500">
-        <FileText className="w-12 h-12 mb-2" />
+      <div className="flex h-full flex-col items-center justify-center text-neutral-500">
+        <FileText className="mb-2 h-12 w-12" />
         <p className="text-sm">Select a file to view</p>
       </div>
     );
@@ -51,7 +51,7 @@ export function FileViewer({ document }: Props) {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-full text-neutral-500">
+      <div className="flex h-full items-center justify-center text-neutral-500">
         <p className="text-sm">Loading...</p>
       </div>
     );
@@ -61,17 +61,23 @@ export function FileViewer({ document }: Props) {
   const textContent = data?.textContent ?? null;
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-700/50">
+    <div className="flex h-full flex-col">
+      <div className="flex items-center justify-between border-b border-neutral-700/50 px-4 py-3">
         <div>
-          <h2 className="text-sm font-medium text-neutral-200">{document.name}</h2>
+          <h2 className="text-sm font-medium text-neutral-200">
+            {document.name}
+          </h2>
           <p className="text-xs text-neutral-500">
             {formatFileSize(document.size_bytes)}
           </p>
         </div>
         {signedUrl && (
           <a href={signedUrl} download={document.name}>
-            <Button variant="ghost" size="sm" icon={<Download className="w-4 h-4" />}>
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={<Download className="h-4 w-4" />}
+            >
               Download
             </Button>
           </a>
@@ -97,28 +103,28 @@ function renderContent(
       <img
         src={url}
         alt="Document preview"
-        className="max-w-full max-h-full object-contain mx-auto"
+        className="mx-auto max-h-full max-w-full object-contain"
       />
     );
   }
 
   if (mimeType === "application/pdf") {
     return (
-      <iframe src={url} className="w-full h-full border-0" title="PDF viewer" />
+      <iframe src={url} className="h-full w-full border-0" title="PDF viewer" />
     );
   }
 
   if (mimeType.startsWith("text/") && textContent !== null) {
     return (
-      <pre className="text-sm text-neutral-300 whitespace-pre-wrap font-mono bg-neutral-800 border border-neutral-700 p-4 rounded-lg">
+      <pre className="whitespace-pre-wrap rounded-lg border border-neutral-700 bg-neutral-800 p-4 font-mono text-sm text-neutral-300">
         {textContent}
       </pre>
     );
   }
 
   return (
-    <div className="flex flex-col items-center justify-center h-full text-neutral-500">
-      <FileText className="w-12 h-12 mb-2" />
+    <div className="flex h-full flex-col items-center justify-center text-neutral-500">
+      <FileText className="mb-2 h-12 w-12" />
       <p className="text-sm">Preview not available for this file type</p>
       <a
         href={url}

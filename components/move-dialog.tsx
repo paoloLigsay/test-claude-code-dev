@@ -16,7 +16,13 @@ type Props = {
   onMoved: () => void;
 };
 
-export function MoveDialog({ itemType, itemId, itemName, onClose, onMoved }: Props) {
+export function MoveDialog({
+  itemType,
+  itemId,
+  itemName,
+  onClose,
+  onMoved,
+}: Props) {
   const [rootFolders, setRootFolders] = useState<Folder[]>([]);
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [moving, setMoving] = useState(false);
@@ -67,7 +73,9 @@ export function MoveDialog({ itemType, itemId, itemName, onClose, onMoved }: Pro
             variant="primary"
             size="sm"
             onClick={handleMove}
-            disabled={moving || (itemType === "document" && selectedFolderId === null)}
+            disabled={
+              moving || (itemType === "document" && selectedFolderId === null)
+            }
           >
             {moving ? "Moving..." : "Move here"}
           </Button>
@@ -78,13 +86,13 @@ export function MoveDialog({ itemType, itemId, itemName, onClose, onMoved }: Pro
         {itemType === "folder" && (
           <button
             onClick={() => setSelectedFolderId(null)}
-            className={`flex items-center gap-2 w-full px-2 py-1.5 rounded-lg text-sm transition-colors ${
+            className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors ${
               selectedFolderId === null
                 ? "bg-brand-muted text-brand"
                 : "text-neutral-300 hover:bg-white/[0.04]"
             }`}
           >
-            <FolderIcon className="w-4 h-4" />
+            <FolderIcon className="h-4 w-4" />
             Root (top level)
           </button>
         )}
@@ -100,9 +108,7 @@ export function MoveDialog({ itemType, itemId, itemName, onClose, onMoved }: Pro
         ))}
       </div>
 
-      {error && (
-        <p className="text-xs text-red-400 mt-2">{error}</p>
-      )}
+      {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
     </Modal>
   );
 }
@@ -141,26 +147,29 @@ function FolderPickerNode({
   return (
     <div>
       <div
-        className={`flex items-center gap-1 py-1 px-2 rounded-lg cursor-pointer transition-colors ${
+        className={`flex cursor-pointer items-center gap-1 rounded-lg px-2 py-1 transition-colors ${
           selectedFolderId === folder.id
             ? "bg-brand-muted text-brand"
             : "text-neutral-300 hover:bg-white/[0.04]"
         }`}
         style={{ paddingLeft: `${depth * 16 + 8}px` }}
       >
-        <button onClick={toggleExpand} className="shrink-0 w-4 h-4 flex items-center justify-center">
+        <button
+          onClick={toggleExpand}
+          className="flex h-4 w-4 shrink-0 items-center justify-center"
+        >
           {isExpanded ? (
-            <ChevronDown className="w-3 h-3 text-neutral-500" />
+            <ChevronDown className="h-3 w-3 text-neutral-500" />
           ) : (
-            <ChevronRight className="w-3 h-3 text-neutral-500" />
+            <ChevronRight className="h-3 w-3 text-neutral-500" />
           )}
         </button>
         <button
           onClick={() => onSelect(folder.id)}
-          className="flex items-center gap-1.5 flex-1 min-w-0"
+          className="flex min-w-0 flex-1 items-center gap-1.5"
         >
-          <FolderIcon className="w-4 h-4 text-neutral-400 shrink-0" />
-          <span className="text-sm truncate">{folder.name}</span>
+          <FolderIcon className="h-4 w-4 shrink-0 text-neutral-400" />
+          <span className="truncate text-sm">{folder.name}</span>
         </button>
       </div>
       {isExpanded &&

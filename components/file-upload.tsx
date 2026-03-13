@@ -46,7 +46,7 @@ export function FileUpload({ folderId, onUploadComplete }: Props) {
       <Button
         variant="ghost"
         size="sm"
-        icon={<Upload className="w-4 h-4" />}
+        icon={<Upload className="h-4 w-4" />}
         onClick={() => inputRef.current?.click()}
         disabled={uploading}
       >
@@ -58,7 +58,7 @@ export function FileUpload({ folderId, onUploadComplete }: Props) {
         onChange={handleFileChange}
         className="hidden"
       />
-      {error && <p className="text-xs text-red-400 px-3 mt-1">{error}</p>}
+      {error && <p className="mt-1 px-3 text-xs text-red-400">{error}</p>}
     </div>
   );
 }

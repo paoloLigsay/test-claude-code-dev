@@ -12,7 +12,7 @@ export default async function LoginPage({
       <div className="flex flex-col items-center gap-6">
         <h1 className="text-2xl font-bold text-neutral-200">Sign in</h1>
         {message && (
-          <p className="text-sm text-green-400 bg-green-500/10 border border-green-500/20 px-4 py-2 rounded-lg">
+          <p className="rounded-lg border border-green-500/20 bg-green-500/10 px-4 py-2 text-sm text-green-400">
             {message}
           </p>
         )}

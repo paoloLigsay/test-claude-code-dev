@@ -42,19 +42,13 @@ export async function deleteFolder(folderId: string) {
     await supabase.storage.from("documents").remove(storagePaths);
   }
 
-  const { error } = await supabase
-    .from("folders")
-    .delete()
-    .eq("id", folderId);
+  const { error } = await supabase.from("folders").delete().eq("id", folderId);
 
   if (error) return { error: error.message };
   return { success: true };
 }
 
-export async function moveFolder(
-  folderId: string,
-  newParentId: string | null
-) {
+export async function moveFolder(folderId: string, newParentId: string | null) {
   const supabase = await createClient();
 
   // Prevent moving a folder into itself or its own descendants
@@ -111,10 +105,7 @@ export async function uploadDocument(formData: FormData) {
   return { data };
 }
 
-export async function deleteDocument(
-  documentId: string,
-  storagePath: string
-) {
+export async function deleteDocument(documentId: string, storagePath: string) {
   const supabase = await createClient();
 
   await supabase.storage.from("documents").remove([storagePath]);
@@ -128,10 +119,7 @@ export async function deleteDocument(
   return { success: true };
 }
 
-export async function moveDocument(
-  documentId: string,
-  newFolderId: string
-) {
+export async function moveDocument(documentId: string, newFolderId: string) {
   const supabase = await createClient();
 
   const { error } = await supabase
@@ -154,11 +142,11 @@ async function checkIsDescendant(
   while (currentId) {
     if (currentId === folderId) return true;
 
-    const { data } = await supabase
+    const { data } = (await supabase
       .from("folders")
       .select("parent_id")
       .eq("id", currentId)
-      .single() as { data: { parent_id: string | null } | null };
+      .single()) as { data: { parent_id: string | null } | null };
 
     currentId = data?.parent_id ?? null;
   }
@@ -208,11 +196,14 @@ export async function getFolderPath(folderId: string): Promise<string[]> {
 
   while (currentId && depth++ < MAX_DEPTH) {
     path.unshift(currentId);
-    const row = await supabase
+    const row = (await supabase
       .from("folders")
       .select("parent_id")
       .eq("id", currentId)
-      .single() as { data: { parent_id: string | null } | null; error: unknown };
+      .single()) as {
+      data: { parent_id: string | null } | null;
+      error: unknown;
+    };
 
     if (row.error || !row.data) break;
 
@@ -223,9 +214,7 @@ export async function getFolderPath(folderId: string): Promise<string[]> {
 }
 
 // Recursively collect all document storage paths under a folder
-async function collectSubtreeStoragePaths(
-  folderId: string
-): Promise<string[]> {
+async function collectSubtreeStoragePaths(folderId: string): Promise<string[]> {
   const supabase = await createClient();
   const paths: string[] = [];
 

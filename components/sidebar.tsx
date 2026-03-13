@@ -16,7 +16,11 @@ type Props = {
   uploadFolderId: string | null;
   onSelectDocument: (doc: Document) => void;
   onFolderMutated: () => void;
-  onRequestMove: (type: "folder" | "document", id: string, name: string) => void;
+  onRequestMove: (
+    type: "folder" | "document",
+    id: string,
+    name: string
+  ) => void;
   onSelectFolder: (folderId: string) => void;
   revealPath: string[];
 };
@@ -50,11 +54,11 @@ export function Sidebar({
   }
 
   return (
-    <aside className="flex flex-col h-full bg-[#1e1e1e]">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-700/50">
+    <aside className="flex h-full flex-col bg-[#1e1e1e]">
+      <div className="flex items-center justify-between border-b border-neutral-700/50 px-4 py-3">
         <h1 className="text-sm font-semibold text-neutral-300">Documents</h1>
         <IconButton onClick={() => setIsCreating(true)} title="New folder">
-          <FolderPlus className="w-4 h-4" />
+          <FolderPlus className="h-4 w-4" />
         </IconButton>
       </div>
 
@@ -90,7 +94,7 @@ export function Sidebar({
         <Button
           variant="ghost"
           size="sm"
-          icon={<LogOut className="w-4 h-4" />}
+          icon={<LogOut className="h-4 w-4" />}
           onClick={() => signOut()}
         >
           Sign out
