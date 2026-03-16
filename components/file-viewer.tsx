@@ -10,8 +10,18 @@ import {
 } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/utils/supabase/client";
-import { FileText, Download, Sparkles, Save } from "lucide-react";
+import {
+  FileText,
+  Download,
+  Sparkles,
+  Save,
+  AlignLeft,
+  Copy,
+  Check,
+} from "lucide-react";
 import { Button } from "./ui/button";
+import { IconButton } from "./ui/icon-button";
+import { Modal } from "./ui/modal";
 import type { Document } from "@/types";
 
 type Props = {
@@ -31,7 +41,10 @@ export const FileViewer = forwardRef<FileViewerHandle, Props>(
   function FileViewer({ document }, ref) {
     const queryClient = useQueryClient();
     const [polishing, startPolishTransition] = useTransition();
+    const [summarizing, startSummarizeTransition] = useTransition();
     const [editedContent, setEditedContent] = useState<string | null>(null);
+    const [summary, setSummary] = useState<string | null>(null);
+    const [copied, setCopied] = useState(false);
     const [saving, startSaveTransition] = useTransition();
 
     const { data, isLoading } = useQuery<SignedUrlData | null>({
@@ -65,6 +78,8 @@ export const FileViewer = forwardRef<FileViewerHandle, Props>(
 
     useEffect(() => {
       setEditedContent(null);
+      setSummary(null);
+      setCopied(false);
     }, [document?.id]);
 
     const save = useCallback(async () => {
@@ -93,6 +108,26 @@ export const FileViewer = forwardRef<FileViewerHandle, Props>(
 
     function handleSave() {
       startSaveTransition(() => save());
+    }
+
+    function handleSummarize() {
+      if (!document) return;
+
+      startSummarizeTransition(async () => {
+        const { summarizeDocument } =
+          await import("@/app/dashboard/ai-actions");
+        const result = await summarizeDocument(
+          document.storage_path,
+          document.mime_type
+        );
+
+        if (result.error) {
+          console.error("Summarize failed:", result.error);
+          return;
+        }
+
+        setSummary(result.data ?? null);
+      });
     }
 
     function handlePolish() {
@@ -167,6 +202,17 @@ export const FileViewer = forwardRef<FileViewerHandle, Props>(
               <Button
                 variant="ghost"
                 size="sm"
+                icon={<AlignLeft size={14} />}
+                onClick={handleSummarize}
+                disabled={summarizing || isDirty}
+              >
+                {summarizing ? "Summarizing..." : "Summarize"}
+              </Button>
+            )}
+            {isTextFile && (
+              <Button
+                variant="ghost"
+                size="sm"
                 icon={<Sparkles size={14} />}
                 onClick={handlePolish}
                 disabled={polishing || isDirty}
@@ -199,6 +245,36 @@ export const FileViewer = forwardRef<FileViewerHandle, Props>(
             renderContent(document.mime_type, signedUrl)
           )}
         </div>
+
+        {summary && (
+          <Modal
+            title="Summary"
+            onClose={() => {
+              setSummary(null);
+              setCopied(false);
+            }}
+            className="max-w-lg"
+            footer={
+              <IconButton
+                onClick={async () => {
+                  await navigator.clipboard.writeText(summary);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                }}
+              >
+                {copied ? (
+                  <Check className="h-4 w-4 text-green-400" />
+                ) : (
+                  <Copy className="h-4 w-4" />
+                )}
+              </IconButton>
+            }
+          >
+            <div className="max-h-96 overflow-auto whitespace-pre-wrap text-sm text-neutral-300">
+              {summary}
+            </div>
+          </Modal>
+        )}
       </div>
     );
   }

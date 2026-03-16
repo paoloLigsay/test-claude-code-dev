@@ -1,6 +1,8 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
+import { getModel } from "@/utils/gemini/client";
+import { POLISH_DOCUMENT, SUMMARIZE_DOCUMENT } from "@/utils/gemini/prompts";
 
 export async function polishDocument(
   documentId: string,
@@ -28,8 +30,6 @@ export async function polishDocument(
 
   const originalContent = await fileData.text();
 
-  const { getModel } = await import("@/utils/gemini/client");
-  const { POLISH_DOCUMENT } = await import("@/utils/gemini/prompts");
   const model = getModel();
   const result = await model.generateContent(
     `${POLISH_DOCUMENT}\n\n---\n\n${originalContent}`
@@ -52,4 +52,34 @@ export async function polishDocument(
   if (dbError) return { error: dbError.message };
 
   return { data: polishedContent };
+}
+
+export async function summarizeDocument(storagePath: string, mimeType: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "Not authenticated" };
+
+  if (!mimeType.startsWith("text/")) {
+    return { error: "Only text files can be summarized" };
+  }
+
+  const { data: fileData, error: downloadError } = await supabase.storage
+    .from("documents")
+    .download(storagePath);
+
+  if (downloadError || !fileData) {
+    return { error: downloadError?.message ?? "Failed to download file" };
+  }
+
+  const originalContent = await fileData.text();
+
+  const model = getModel();
+  const result = await model.generateContent(
+    `${SUMMARIZE_DOCUMENT}\n\n---\n\n${originalContent}`
+  );
+
+  return { data: result.response.text() };
 }
