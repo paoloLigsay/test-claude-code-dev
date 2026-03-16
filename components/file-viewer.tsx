@@ -10,8 +10,20 @@ import {
 } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/utils/supabase/client";
-import { FileText, Download, Sparkles, Save } from "lucide-react";
+import {
+  FileText,
+  Download,
+  Sparkles,
+  Save,
+  AlignLeft,
+  Copy,
+  Check,
+  Globe,
+  Link,
+} from "lucide-react";
 import { Button } from "./ui/button";
+import { IconButton } from "./ui/icon-button";
+import { Modal } from "./ui/modal";
 import type { Document } from "@/types";
 
 type Props = {
@@ -31,8 +43,15 @@ export const FileViewer = forwardRef<FileViewerHandle, Props>(
   function FileViewer({ document }, ref) {
     const queryClient = useQueryClient();
     const [polishing, startPolishTransition] = useTransition();
+    const [summarizing, startSummarizeTransition] = useTransition();
     const [editedContent, setEditedContent] = useState<string | null>(null);
+    const [summary, setSummary] = useState<string | null>(null);
+    const [copied, setCopied] = useState(false);
     const [saving, startSaveTransition] = useTransition();
+    const [toggling, startToggleTransition] = useTransition();
+    const [shareOpen, setShareOpen] = useState(false);
+    const [isPublic, setIsPublic] = useState(false);
+    const [linkCopied, setLinkCopied] = useState(false);
 
     const { data, isLoading } = useQuery<SignedUrlData | null>({
       queryKey: ["signed-url", document?.storage_path],
@@ -65,7 +84,12 @@ export const FileViewer = forwardRef<FileViewerHandle, Props>(
 
     useEffect(() => {
       setEditedContent(null);
-    }, [document?.id]);
+      setSummary(null);
+      setCopied(false);
+      setShareOpen(false);
+      setLinkCopied(false);
+      setIsPublic(document?.is_public ?? false);
+    }, [document?.id, document?.is_public]);
 
     const save = useCallback(async () => {
       if (!document || !isDirty || editedContent === null) return;
@@ -95,6 +119,26 @@ export const FileViewer = forwardRef<FileViewerHandle, Props>(
       startSaveTransition(() => save());
     }
 
+    function handleSummarize() {
+      if (!document) return;
+
+      startSummarizeTransition(async () => {
+        const { summarizeDocument } =
+          await import("@/app/dashboard/ai-actions");
+        const result = await summarizeDocument(
+          document.storage_path,
+          document.mime_type
+        );
+
+        if (result.error) {
+          console.error("Summarize failed:", result.error);
+          return;
+        }
+
+        setSummary(result.data ?? null);
+      });
+    }
+
     function handlePolish() {
       if (!document) return;
 
@@ -117,6 +161,33 @@ export const FileViewer = forwardRef<FileViewerHandle, Props>(
         );
         setEditedContent(null);
       });
+    }
+
+    function handleTogglePublic() {
+      if (!document) return;
+
+      const newValue = !isPublic;
+      startToggleTransition(async () => {
+        const { toggleDocumentPublic } =
+          await import("@/app/dashboard/actions");
+        const result = await toggleDocumentPublic(document.id, newValue);
+
+        if (result.error) {
+          console.error("Toggle failed:", result.error);
+          return;
+        }
+
+        setIsPublic(newValue);
+      });
+    }
+
+    async function handleCopyLink() {
+      if (!document) return;
+
+      const url = `${window.location.origin}/share/${document.id}`;
+      await navigator.clipboard.writeText(url);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
     }
 
     if (!document) {
@@ -167,6 +238,17 @@ export const FileViewer = forwardRef<FileViewerHandle, Props>(
               <Button
                 variant="ghost"
                 size="sm"
+                icon={<AlignLeft size={14} />}
+                onClick={handleSummarize}
+                disabled={summarizing || isDirty}
+              >
+                {summarizing ? "Summarizing..." : "Summarize"}
+              </Button>
+            )}
+            {isTextFile && (
+              <Button
+                variant="ghost"
+                size="sm"
                 icon={<Sparkles size={14} />}
                 onClick={handlePolish}
                 disabled={polishing || isDirty}
@@ -174,6 +256,14 @@ export const FileViewer = forwardRef<FileViewerHandle, Props>(
                 {polishing ? "Polishing..." : "Polish"}
               </Button>
             )}
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={<Globe size={14} />}
+              onClick={() => setShareOpen(true)}
+            >
+              Share
+            </Button>
             {signedUrl && (
               <a href={signedUrl} download={document.name}>
                 <Button
@@ -199,6 +289,84 @@ export const FileViewer = forwardRef<FileViewerHandle, Props>(
             renderContent(document.mime_type, signedUrl)
           )}
         </div>
+
+        {shareOpen && (
+          <Modal
+            title="Share document"
+            onClose={() => setShareOpen(false)}
+            className="max-w-sm"
+          >
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-neutral-300">
+                  {isPublic ? "Public" : "Private"}
+                </span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={isPublic}
+                  disabled={toggling}
+                  onClick={handleTogglePublic}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ${
+                    isPublic ? "bg-blue-500" : "bg-neutral-600"
+                  } ${toggling ? "opacity-50" : ""}`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 ${
+                      isPublic ? "translate-x-5" : "translate-x-0"
+                    }`}
+                  />
+                </button>
+              </div>
+              {isPublic && (
+                <div className="flex items-center gap-2">
+                  <input
+                    readOnly
+                    value={`${window.location.origin}/share/${document.id}`}
+                    className="flex-1 rounded-md border border-neutral-700 bg-neutral-800 px-3 py-1.5 text-xs text-neutral-300 outline-none"
+                  />
+                  <IconButton onClick={handleCopyLink}>
+                    {linkCopied ? (
+                      <Check className="h-4 w-4 text-green-400" />
+                    ) : (
+                      <Link className="h-4 w-4" />
+                    )}
+                  </IconButton>
+                </div>
+              )}
+            </div>
+          </Modal>
+        )}
+
+        {summary && (
+          <Modal
+            title="Summary"
+            onClose={() => {
+              setSummary(null);
+              setCopied(false);
+            }}
+            className="max-w-lg"
+            footer={
+              <IconButton
+                onClick={async () => {
+                  await navigator.clipboard.writeText(summary);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                }}
+              >
+                {copied ? (
+                  <Check className="h-4 w-4 text-green-400" />
+                ) : (
+                  <Copy className="h-4 w-4" />
+                )}
+              </IconButton>
+            }
+          >
+            <div className="max-h-96 overflow-auto whitespace-pre-wrap text-sm text-neutral-300">
+              {summary}
+            </div>
+          </Modal>
+        )}
       </div>
     );
   }
