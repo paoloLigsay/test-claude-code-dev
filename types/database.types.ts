@@ -60,6 +60,7 @@ export type Database = {
           storage_path: string;
           mime_type: string;
           size_bytes: number;
+          is_public: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -71,6 +72,7 @@ export type Database = {
           storage_path: string;
           mime_type: string;
           size_bytes: number;
+          is_public?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -82,6 +84,7 @@ export type Database = {
           storage_path?: string;
           mime_type?: string;
           size_bytes?: number;
+          is_public?: boolean;
           created_at?: string;
           updated_at?: string;
         };

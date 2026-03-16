@@ -68,6 +68,7 @@ Client Component. Right panel file preview and editor.
 - Text files are inline-editable. Shows "Save" button when content is dirty. "(unsaved)" indicator in file size area.
 - Auto-saves via ref when switching documents (called by DashboardShell).
 - Shows download button and file size.
+- "Share" button (Globe icon) opens a modal with public/private toggle and shareable URL with copy button. Calls `toggleDocumentPublic` Server Action via dynamic import.
 - Empty state when no document selected.
 
 ### NewFileButton (`new-file-button.tsx`)

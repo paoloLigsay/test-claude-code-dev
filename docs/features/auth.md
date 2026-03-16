@@ -9,7 +9,7 @@ Cookie-based auth using Supabase Auth with email/password.
 - `signIn` redirects to `/dashboard` on success, returns `{ error }` on failure.
 - `signUp` redirects to `/login?message=Check your email...` on success.
 - `signOut` clears session and redirects to `/login`.
-- OAuth callback handled at `app/auth/callback/route.ts` — exchanges code for session, redirects to `/dashboard`.
+- OAuth callback handled at `app/api/auth/callback/route.ts` — exchanges code for session, redirects to `/dashboard`.
 
 ## Pages
 

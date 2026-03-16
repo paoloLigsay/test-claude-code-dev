@@ -18,6 +18,8 @@ import {
   AlignLeft,
   Copy,
   Check,
+  Globe,
+  Link,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { IconButton } from "./ui/icon-button";
@@ -46,6 +48,10 @@ export const FileViewer = forwardRef<FileViewerHandle, Props>(
     const [summary, setSummary] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
     const [saving, startSaveTransition] = useTransition();
+    const [toggling, startToggleTransition] = useTransition();
+    const [shareOpen, setShareOpen] = useState(false);
+    const [isPublic, setIsPublic] = useState(false);
+    const [linkCopied, setLinkCopied] = useState(false);
 
     const { data, isLoading } = useQuery<SignedUrlData | null>({
       queryKey: ["signed-url", document?.storage_path],
@@ -80,7 +86,10 @@ export const FileViewer = forwardRef<FileViewerHandle, Props>(
       setEditedContent(null);
       setSummary(null);
       setCopied(false);
-    }, [document?.id]);
+      setShareOpen(false);
+      setLinkCopied(false);
+      setIsPublic(document?.is_public ?? false);
+    }, [document?.id, document?.is_public]);
 
     const save = useCallback(async () => {
       if (!document || !isDirty || editedContent === null) return;
@@ -154,6 +163,33 @@ export const FileViewer = forwardRef<FileViewerHandle, Props>(
       });
     }
 
+    function handleTogglePublic() {
+      if (!document) return;
+
+      const newValue = !isPublic;
+      startToggleTransition(async () => {
+        const { toggleDocumentPublic } =
+          await import("@/app/dashboard/actions");
+        const result = await toggleDocumentPublic(document.id, newValue);
+
+        if (result.error) {
+          console.error("Toggle failed:", result.error);
+          return;
+        }
+
+        setIsPublic(newValue);
+      });
+    }
+
+    async function handleCopyLink() {
+      if (!document) return;
+
+      const url = `${window.location.origin}/share/${document.id}`;
+      await navigator.clipboard.writeText(url);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    }
+
     if (!document) {
       return (
         <div className="flex h-full flex-col items-center justify-center text-neutral-500">
@@ -220,6 +256,14 @@ export const FileViewer = forwardRef<FileViewerHandle, Props>(
                 {polishing ? "Polishing..." : "Polish"}
               </Button>
             )}
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={<Globe size={14} />}
+              onClick={() => setShareOpen(true)}
+            >
+              Share
+            </Button>
             {signedUrl && (
               <a href={signedUrl} download={document.name}>
                 <Button
@@ -245,6 +289,54 @@ export const FileViewer = forwardRef<FileViewerHandle, Props>(
             renderContent(document.mime_type, signedUrl)
           )}
         </div>
+
+        {shareOpen && (
+          <Modal
+            title="Share document"
+            onClose={() => setShareOpen(false)}
+            className="max-w-sm"
+          >
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-neutral-300">
+                  {isPublic ? "Public" : "Private"}
+                </span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={isPublic}
+                  disabled={toggling}
+                  onClick={handleTogglePublic}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ${
+                    isPublic ? "bg-blue-500" : "bg-neutral-600"
+                  } ${toggling ? "opacity-50" : ""}`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 ${
+                      isPublic ? "translate-x-5" : "translate-x-0"
+                    }`}
+                  />
+                </button>
+              </div>
+              {isPublic && (
+                <div className="flex items-center gap-2">
+                  <input
+                    readOnly
+                    value={`${window.location.origin}/share/${document.id}`}
+                    className="flex-1 rounded-md border border-neutral-700 bg-neutral-800 px-3 py-1.5 text-xs text-neutral-300 outline-none"
+                  />
+                  <IconButton onClick={handleCopyLink}>
+                    {linkCopied ? (
+                      <Check className="h-4 w-4 text-green-400" />
+                    ) : (
+                      <Link className="h-4 w-4" />
+                    )}
+                  </IconButton>
+                </div>
+              )}
+            </div>
+          </Modal>
+        )}
 
         {summary && (
           <Modal

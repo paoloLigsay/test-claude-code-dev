@@ -281,6 +281,27 @@ export async function saveFileContent(
   return { success: true };
 }
 
+export async function toggleDocumentPublic(
+  documentId: string,
+  isPublic: boolean
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "Not authenticated" };
+
+  const { error } = await supabase
+    .from("documents")
+    .update({ is_public: isPublic, updated_at: new Date().toISOString() })
+    .eq("id", documentId)
+    .eq("user_id", user.id);
+
+  if (error) return { error: error.message };
+  return { data: { isPublic } };
+}
+
 // Recursively collect all document storage paths under a folder
 async function collectSubtreeStoragePaths(folderId: string): Promise<string[]> {
   const supabase = await createClient();
