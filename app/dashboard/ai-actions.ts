@@ -1,8 +1,31 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
-import { getModel } from "@/utils/gemini/client";
-import { POLISH_DOCUMENT, SUMMARIZE_DOCUMENT } from "@/utils/gemini/prompts";
+
+const AI_SERVICE_URL = process.env.AI_SERVICE_URL!;
+const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY!;
+
+async function callAIService(
+  endpoint: string,
+  content: string
+): Promise<{ result?: string; error?: string }> {
+  const response = await fetch(`${AI_SERVICE_URL}${endpoint}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": INTERNAL_API_KEY,
+    },
+    body: JSON.stringify({ content }),
+  });
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    return { error: body?.detail ?? `AI service error (${response.status})` };
+  }
+
+  const data = await response.json();
+  return { result: data.result };
+}
 
 export async function polishDocument(
   documentId: string,
@@ -30,11 +53,12 @@ export async function polishDocument(
 
   const originalContent = await fileData.text();
 
-  const model = getModel();
-  const result = await model.generateContent(
-    `${POLISH_DOCUMENT}\n\n---\n\n${originalContent}`
+  const { result: polishedContent, error: aiError } = await callAIService(
+    "/text/polish",
+    originalContent
   );
-  const polishedContent = result.response.text();
+
+  if (aiError || !polishedContent) return { error: aiError ?? "Polish failed" };
 
   const { error: uploadError } = await supabase.storage
     .from("documents")
@@ -76,10 +100,12 @@ export async function summarizeDocument(storagePath: string, mimeType: string) {
 
   const originalContent = await fileData.text();
 
-  const model = getModel();
-  const result = await model.generateContent(
-    `${SUMMARIZE_DOCUMENT}\n\n---\n\n${originalContent}`
+  const { result: summary, error: aiError } = await callAIService(
+    "/text/summarize",
+    originalContent
   );
 
-  return { data: result.response.text() };
+  if (aiError || !summary) return { error: aiError ?? "Summarize failed" };
+
+  return { data: summary };
 }

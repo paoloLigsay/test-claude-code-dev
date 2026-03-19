@@ -1,34 +1,27 @@
 # Feature: AI Integration
 
-Gemini API integration for AI-powered features. Uses Google's free-tier `gemini-2.5-flash` model.
+AI-powered document features served by a Python FastAPI microservice. The Next.js app calls the Python service for all AI operations.
 
-## Setup
+## Architecture
 
-- SDK: `@google/generative-ai`
-- API key: `GEMINI_API_KEY` in `.env` (server-only, no `NEXT_PUBLIC_` prefix)
-- Client utility: `utils/gemini/client.ts` — exports `getModel()` which returns a Gemini model instance.
+```
+Next.js Server Actions → Python FastAPI → Gemini API
+```
 
-## Prompts
+- Next.js handles auth, file download/upload, and DB updates.
+- Python handles AI processing (text in, text out).
+- Service-to-service auth via shared `INTERNAL_API_KEY` header.
 
-All AI prompts are stored as named string constants in `utils/gemini/prompts.ts`. Server Actions import the relevant prompt constant — never inline prompt text in action files.
-
-- `POLISH_DOCUMENT` — system instruction for the polish feature.
-- `SUMMARIZE_DOCUMENT` — system instruction for the summarize feature.
-
-When adding new AI features, add the prompt constant to `prompts.ts` first, then import it in the Server Action.
-
-## Storage Pattern
-
-Storage overwrites use `.upload()` with `{ upsert: true }` (not `.update()`). The Storage bucket has INSERT RLS policies but not UPDATE policies, so `.update()` will fail with an RLS error.
+See `docs/features/ai-service.md` for Python service details.
 
 ## Polish Document
 
-Reads a text file's content, sends it to Gemini for polishing (grammar, spelling, clarity, formatting), then overwrites the file in Supabase Storage with the polished version.
+Reads a text file's content, sends it to the AI service for polishing (grammar, spelling, clarity, formatting), then overwrites the file in Supabase Storage with the polished version.
 
 ### Flow
 
 1. User views a text file in `FileViewer` and clicks "Polish".
-2. `polishDocument` Server Action downloads the file from Supabase Storage, sends content to Gemini (using the `POLISH_DOCUMENT` prompt from `utils/gemini/prompts.ts`), uploads the polished version back (overwrite via `.upload()` with `upsert: true`), and updates the document's `updated_at` timestamp.
+2. `polishDocument` Server Action downloads the file from Supabase Storage, sends content to `POST /text/polish` on the AI service, uploads the polished version back (overwrite via `.upload()` with `upsert: true`), and updates the document's `updated_at` timestamp.
 3. On success, the UI updates the displayed text content immediately via `queryClient.setQueryData` (cache update from server response).
 4. The polished content persists across refreshes since Storage and DB are both updated.
 
@@ -39,12 +32,12 @@ Reads a text file's content, sends it to Gemini for polishing (grammar, spelling
 
 ## Summarize Document
 
-Reads a text file's content, sends it to Gemini for summarization, and displays the summary in a modal. Read-only — does not modify the original file.
+Reads a text file's content, sends it to the AI service for summarization, and displays the summary in a modal. Read-only — does not modify the original file.
 
 ### Flow
 
 1. User views a text file in `FileViewer` and clicks "Summarize".
-2. `summarizeDocument` Server Action downloads the file from Supabase Storage, sends content to Gemini (using the `SUMMARIZE_DOCUMENT` prompt from `utils/gemini/prompts.ts`), and returns the summary.
+2. `summarizeDocument` Server Action downloads the file from Supabase Storage, sends content to `POST /text/summarize` on the AI service, and returns the summary.
 3. On success, the summary is displayed in a `Modal` overlay within `FileViewer`.
 4. The summary is transient — dismissed by closing the modal, and cleared when switching documents.
 
@@ -55,8 +48,8 @@ Reads a text file's content, sends it to Gemini for summarization, and displays 
 
 ## Server Actions (`app/dashboard/ai-actions.ts`)
 
-- `polishDocument(documentId, storagePath, mimeType)` — downloads file content, sends to Gemini for polishing, uploads polished version back to Storage, updates DB timestamp. Returns `{ data: string }` with polished text or `{ error: string }`.
-- `summarizeDocument(storagePath, mimeType)` — downloads file content, sends to Gemini for summarization. Returns `{ data: string }` with summary or `{ error: string }`. Does not modify Storage or DB.
+- `polishDocument(documentId, storagePath, mimeType)` — downloads file content, calls AI service for polishing, uploads polished version back to Storage, updates DB timestamp. Returns `{ data: string }` with polished text or `{ error: string }`.
+- `summarizeDocument(storagePath, mimeType)` — downloads file content, calls AI service for summarization. Returns `{ data: string }` with summary or `{ error: string }`. Does not modify Storage or DB.
 
 ## Components
 

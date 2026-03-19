@@ -9,10 +9,10 @@
     "lint": "next lint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "prepare": "husky"
+    "prepare": "husky",
+    "dev:ai": "cd services/ai && .venv/bin/uvicorn main:app --reload --port 8000 --env-file .env"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.24.1",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.46.2",
     "@tanstack/react-query": "^5.90.21",
