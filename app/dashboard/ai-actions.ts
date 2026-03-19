@@ -109,3 +109,96 @@ export async function summarizeDocument(storagePath: string, mimeType: string) {
 
   return { data: summary };
 }
+
+export async function embedDocument(
+  documentId: string,
+  storagePath: string,
+  mimeType: string
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "Not authenticated" };
+
+  if (!mimeType.startsWith("text/")) {
+    return { error: "Only text files can be embedded" };
+  }
+
+  const { data: fileData, error: downloadError } = await supabase.storage
+    .from("documents")
+    .download(storagePath);
+
+  if (downloadError || !fileData) {
+    return { error: downloadError?.message ?? "Failed to download file" };
+  }
+
+  const content = await fileData.text();
+
+  const response = await fetch(`${AI_SERVICE_URL}/rag/embed`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": INTERNAL_API_KEY,
+    },
+    body: JSON.stringify({ document_id: documentId, content }),
+  });
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    return { error: body?.detail ?? `Embed failed (${response.status})` };
+  }
+
+  return { success: true };
+}
+
+export async function askDocuments(question: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "Not authenticated" };
+
+  const { data: docs, error: docsError } = await supabase
+    .from("documents")
+    .select("id, name")
+    .eq("user_id", user.id);
+
+  if (docsError) return { error: docsError.message };
+  if (!docs || docs.length === 0) return { error: "No documents found" };
+
+  const documentIds = docs.map((d) => d.id);
+  const nameMap = new Map(docs.map((d) => [d.id, d.name]));
+
+  const response = await fetch(`${AI_SERVICE_URL}/rag/ask`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": INTERNAL_API_KEY,
+    },
+    body: JSON.stringify({ question, document_ids: documentIds }),
+  });
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    return { error: body?.detail ?? `Ask failed (${response.status})` };
+  }
+
+  const data = await response.json();
+
+  const sources = (
+    data.sources as {
+      document_id: string;
+      chunk_index: number;
+      content: string;
+      similarity: number;
+    }[]
+  ).map((s) => ({
+    ...s,
+    document_name: nameMap.get(s.document_id) ?? "Unknown",
+  }));
+
+  return { data: { answer: data.answer as string, sources } };
+}

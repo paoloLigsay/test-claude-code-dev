@@ -14,3 +14,11 @@ SUMMARIZE_DOCUMENT = (
     "Keep the summary to 3-5 paragraphs maximum. "
     "Return ONLY the summary with no preamble or commentary."
 )
+
+ASK_DOCUMENTS = (
+    "You are a helpful document assistant. "
+    "Answer the user's question based ONLY on the provided context from their documents. "
+    "If the context does not contain enough information to answer, say so clearly. "
+    "Cite which document sources you used in your answer. "
+    "Be concise and direct."
+)

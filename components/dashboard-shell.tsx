@@ -9,7 +9,10 @@ import { FileUpload } from "./file-upload";
 import { NewFileButton } from "./new-file-button";
 import { MoveDialog } from "./move-dialog";
 import { SearchModal } from "./search-modal";
+import { ChatPanel } from "./chat-panel";
 import { createClient } from "@/utils/supabase/client";
+import { MessageSquare } from "lucide-react";
+import { Button } from "./ui/button";
 import type { Folder, Document } from "@/types";
 
 type MoveTarget = {
@@ -44,6 +47,7 @@ export function DashboardShell({ initialFolders }: Props) {
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [moveTarget, setMoveTarget] = useState<MoveTarget | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
   const [revealPath, setRevealPath] = useState<string[]>([]);
   const fileViewerRef = useRef<FileViewerHandle>(null);
 
@@ -109,34 +113,54 @@ export function DashboardShell({ initialFolders }: Props) {
           />
         </Panel>
         <Separator className="hover:bg-brand/50 data-[resize-handle-active]:bg-brand/50 w-[1px] cursor-col-resize bg-neutral-700/50 transition-colors focus:outline-none" />
-        <Panel defaultSize="80%">
+        <Panel defaultSize={chatOpen ? "55%" : "80%"}>
           <div className="flex h-full flex-col bg-[#202020]">
-            {selectedFolderId && (
-              <div className="flex gap-2 border-b border-neutral-700/50 px-4 py-2">
-                <FileUpload
-                  folderId={selectedFolderId}
-                  onUploadComplete={() => {
-                    queryClient.invalidateQueries({
-                      queryKey: ["folder-contents", selectedFolderId],
-                    });
-                  }}
-                />
-                <NewFileButton
-                  folderId={selectedFolderId}
-                  onCreated={(doc) => {
-                    queryClient.invalidateQueries({
-                      queryKey: ["folder-contents", selectedFolderId],
-                    });
-                    setSelectedDocument(doc);
-                  }}
-                />
+            <div className="flex items-center justify-between border-b border-neutral-700/50 px-4 py-2">
+              <div className="flex gap-2">
+                {selectedFolderId && (
+                  <>
+                    <FileUpload
+                      folderId={selectedFolderId}
+                      onUploadComplete={() => {
+                        queryClient.invalidateQueries({
+                          queryKey: ["folder-contents", selectedFolderId],
+                        });
+                      }}
+                    />
+                    <NewFileButton
+                      folderId={selectedFolderId}
+                      onCreated={(doc) => {
+                        queryClient.invalidateQueries({
+                          queryKey: ["folder-contents", selectedFolderId],
+                        });
+                        setSelectedDocument(doc);
+                      }}
+                    />
+                  </>
+                )}
               </div>
-            )}
+              <Button
+                variant={chatOpen ? "default" : "ghost"}
+                size="sm"
+                icon={<MessageSquare size={14} />}
+                onClick={() => setChatOpen((prev) => !prev)}
+              >
+                Ask AI
+              </Button>
+            </div>
             <div className="flex-1">
               <FileViewer ref={fileViewerRef} document={selectedDocument} />
             </div>
           </div>
         </Panel>
+        {chatOpen && (
+          <>
+            <Separator className="hover:bg-brand/50 data-[resize-handle-active]:bg-brand/50 w-[1px] cursor-col-resize bg-neutral-700/50 transition-colors focus:outline-none" />
+            <Panel defaultSize="25%" minSize="15%" maxSize="40%">
+              <ChatPanel />
+            </Panel>
+          </>
+        )}
       </Group>
 
       <SearchModal

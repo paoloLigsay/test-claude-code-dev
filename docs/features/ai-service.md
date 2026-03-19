@@ -44,10 +44,12 @@ npm run dev:ai
 
 ## Environment Variables
 
-| Variable           | Purpose                                                   |
-| ------------------ | --------------------------------------------------------- |
-| `GEMINI_API_KEY`   | Google Gemini API access                                  |
-| `INTERNAL_API_KEY` | Shared secret — must match the Next.js `INTERNAL_API_KEY` |
+| Variable                    | Purpose                                                   |
+| --------------------------- | --------------------------------------------------------- |
+| `GEMINI_API_KEY`            | Google Gemini API access                                  |
+| `INTERNAL_API_KEY`          | Shared secret — must match the Next.js `INTERNAL_API_KEY` |
+| `SUPABASE_URL`              | Supabase project URL (for RAG/document_chunks access)     |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service role key (bypasses RLS for document_chunks table) |
 
 ## Authentication
 
@@ -71,15 +73,36 @@ Health check. Returns `{ "status": "ok" }`. No auth required.
 - Response: `{ "result": string }`
 - Summarizes text into 3-5 paragraphs.
 
+### `POST /rag/embed`
+
+- Request: `{ "document_id": string, "content": string }`
+- Response: `{ "chunks_stored": number }`
+- Chunks text, embeds each chunk, stores in `document_chunks` table. Deletes existing chunks for the document first (idempotent re-embedding).
+
+### `DELETE /rag/embed/{document_id}`
+
+- Response: `{ "success": true }`
+- Deletes all chunks for a document.
+
+### `POST /rag/ask`
+
+- Request: `{ "question": string, "document_ids": string[] }`
+- Response: `{ "answer": string, "sources": [{ "document_id": string, "chunk_index": number, "content": string, "similarity": number }] }`
+- Embeds the question, searches for similar chunks across the given documents, generates an answer with Gemini.
+
 ## File Structure
 
-| File               | Purpose                                           |
-| ------------------ | ------------------------------------------------- |
-| `main.py`          | FastAPI app, health endpoint, router registration |
-| `routers/text.py`  | `/text/polish` and `/text/summarize` endpoints    |
-| `gemini_client.py` | Thin wrapper around `google-genai` SDK            |
-| `prompts.py`       | AI prompt constants                               |
-| `dependencies.py`  | `verify_api_key` dependency for auth              |
+| File                 | Purpose                                                      |
+| -------------------- | ------------------------------------------------------------ |
+| `main.py`            | FastAPI app, health endpoint, router registration            |
+| `routers/text.py`    | `/text/polish` and `/text/summarize` endpoints               |
+| `routers/rag.py`     | `/rag/embed`, `/rag/ask`, `DELETE /rag/embed/{id}` endpoints |
+| `gemini_client.py`   | Thin wrapper around `google-genai` SDK                       |
+| `embeddings.py`      | Gemini text-embedding-004 wrapper for vector generation      |
+| `chunker.py`         | Text splitting into overlapping chunks                       |
+| `supabase_client.py` | Supabase service role client for `document_chunks` table     |
+| `prompts.py`         | AI prompt constants                                          |
+| `dependencies.py`    | `verify_api_key` dependency for auth                         |
 
 ## Dependencies
 
@@ -88,6 +111,7 @@ Health check. Returns `{ "status": "ok" }`. No auth required.
 - `google-genai` — Google Gemini SDK (new package, replaces deprecated `google-generativeai`)
 - `pydantic` — request/response validation
 - `python-dotenv` — required by uvicorn's `--env-file` flag
+- `supabase` — Supabase Python client (service role access for document_chunks)
 
 ## Troubleshooting
 

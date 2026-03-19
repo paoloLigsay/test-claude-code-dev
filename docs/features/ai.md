@@ -46,11 +46,30 @@ Reads a text file's content, sends it to the AI service for summarization, and d
 - Only works on `text/*` MIME types. The Summarize button is hidden for images, PDFs, and other binary files.
 - Summarize is disabled when the file has unsaved local edits (`isDirty`). User must save or discard first.
 
+## Cross-Document RAG Chat
+
+Ask questions across all your documents. Uses pgvector for semantic search and Gemini for answer generation. See `docs/features/rag.md` for full details.
+
+### Flow
+
+1. Documents are automatically embedded (chunked + vectorized) on upload and save.
+2. User opens the "Ask AI" chat panel in the dashboard toolbar.
+3. User types a question. The system searches all their documents for relevant chunks, then generates an answer with source attribution.
+
+### Constraints
+
+- Only `text/*` files are embedded. Binary files are skipped.
+- Chat history is ephemeral (in-memory, cleared on refresh).
+- Embedding is fire-and-forget — failures don't block uploads/saves.
+
 ## Server Actions (`app/dashboard/ai-actions.ts`)
 
 - `polishDocument(documentId, storagePath, mimeType)` — downloads file content, calls AI service for polishing, uploads polished version back to Storage, updates DB timestamp. Returns `{ data: string }` with polished text or `{ error: string }`.
 - `summarizeDocument(storagePath, mimeType)` — downloads file content, calls AI service for summarization. Returns `{ data: string }` with summary or `{ error: string }`. Does not modify Storage or DB.
+- `embedDocument(documentId, storagePath, mimeType)` — downloads file content, sends to AI service for chunking and embedding. Called fire-and-forget from `uploadDocument` and `saveFileContent`.
+- `askDocuments(question)` — gets user's document IDs, calls AI service for RAG search + answer. Returns `{ data: { answer, sources } }` or `{ error }`.
 
 ## Components
 
 - `FileViewer` (`components/file-viewer.tsx`) — renders "Summarize" and "Polish" buttons next to the Download button for text files. Both use `useTransition` for loading state and are disabled when content is dirty. Summary is displayed in a `Modal`.
+- `ChatPanel` (`components/chat-panel.tsx`) — collapsible right panel for cross-document Q&A. Toggled via "Ask AI" button in `DashboardShell`.
