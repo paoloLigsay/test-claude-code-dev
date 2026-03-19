@@ -102,6 +102,14 @@ export async function uploadDocument(formData: FormData) {
     .single();
 
   if (error) return { error: error.message };
+
+  // Fire-and-forget: embed text files for RAG search
+  if (data.mime_type.startsWith("text/")) {
+    import("@/app/dashboard/ai-actions").then(({ embedDocument }) => {
+      embedDocument(data.id, data.storage_path, data.mime_type);
+    });
+  }
+
   return { data };
 }
 
@@ -278,6 +286,12 @@ export async function saveFileContent(
     .eq("user_id", user.id);
 
   if (error) return { error: error.message };
+
+  // Fire-and-forget: re-embed for RAG search
+  import("@/app/dashboard/ai-actions").then(({ embedDocument }) => {
+    embedDocument(documentId, storagePath, "text/plain");
+  });
+
   return { success: true };
 }
 
