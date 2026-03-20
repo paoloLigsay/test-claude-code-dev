@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Send, FileText, ChevronDown, ChevronRight } from "lucide-react";
 import { IconButton } from "./ui/icon-button";
 import { Input } from "./ui/input";
@@ -9,41 +9,98 @@ import type { ChatMessage, ChatSource } from "@/types";
 export function ChatPanel() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
-  const [asking, startAskTransition] = useTransition();
+  const [asking, setAsking] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const question = input.trim();
-    if (!question || asking) return;
+  const handleSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      const question = input.trim();
+      if (!question || asking) return;
 
-    const userMessage: ChatMessage = {
-      id: crypto.randomUUID(),
-      role: "user",
-      content: question,
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
-    setInput("");
-
-    startAskTransition(async () => {
-      const { askDocuments } = await import("@/app/dashboard/ai-actions");
-      const result = await askDocuments(question);
-
-      const assistantMessage: ChatMessage = {
+      const userMessage: ChatMessage = {
         id: crypto.randomUUID(),
-        role: "assistant",
-        content: result.error ?? result.data?.answer ?? "No response",
-        sources: result.data?.sources,
+        role: "user",
+        content: question,
       };
 
-      setMessages((prev) => [...prev, assistantMessage]);
-    });
-  }
+      const assistantId = crypto.randomUUID();
+
+      setMessages((prev) => [
+        ...prev,
+        userMessage,
+        { id: assistantId, role: "assistant", content: "" },
+      ]);
+      setInput("");
+      setAsking(true);
+
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question }),
+      });
+
+      if (!response.ok || !response.body) {
+        const body = await response.json().catch(() => null);
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantId
+              ? { ...m, content: body?.error ?? "Failed to get response" }
+              : m
+          )
+        );
+        setAsking(false);
+        return;
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+
+          const payload = line.slice(6);
+          if (payload === "[DONE]") continue;
+
+          const event = JSON.parse(payload) as
+            | { type: "text"; content: string }
+            | { type: "sources"; sources: ChatSource[] };
+
+          if (event.type === "text") {
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantId
+                  ? { ...m, content: m.content + event.content }
+                  : m
+              )
+            );
+          } else if (event.type === "sources") {
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantId ? { ...m, sources: event.sources } : m
+              )
+            );
+          }
+        }
+      }
+
+      setAsking(false);
+    },
+    [input, asking]
+  );
 
   return (
     <div className="flex h-full flex-col bg-neutral-900">
@@ -65,13 +122,6 @@ export function ChatPanel() {
             {messages.map((msg) => (
               <MessageBubble key={msg.id} message={msg} />
             ))}
-            {asking && (
-              <div className="flex gap-1.5 px-3 py-2">
-                <span className="h-2 w-2 animate-pulse rounded-full bg-neutral-500" />
-                <span className="h-2 w-2 animate-pulse rounded-full bg-neutral-500 [animation-delay:150ms]" />
-                <span className="h-2 w-2 animate-pulse rounded-full bg-neutral-500 [animation-delay:300ms]" />
-              </div>
-            )}
             <div ref={messagesEndRef} />
           </div>
         )}

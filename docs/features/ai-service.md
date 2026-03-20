@@ -90,19 +90,28 @@ Health check. Returns `{ "status": "ok" }`. No auth required.
 - Response: `{ "answer": string, "sources": [{ "document_id": string, "chunk_index": number, "content": string, "similarity": number }] }`
 - Embeds the question, searches for similar chunks across the given documents, generates an answer with Gemini.
 
+### `POST /rag/ask/stream`
+
+- Request: `{ "question": string, "document_ids": string[] }`
+- Response: SSE stream (`text/event-stream`)
+  - `data: { "type": "text", "content": "..." }` — streamed answer chunks from Gemini
+  - `data: { "type": "sources", "sources": [...] }` — source attribution (sent once after answer completes)
+  - `data: [DONE]` — signals end of stream
+- Streaming version of `/rag/ask`. Same retrieval logic, but Gemini output is streamed as SSE events for faster time-to-first-token.
+
 ## File Structure
 
-| File                 | Purpose                                                      |
-| -------------------- | ------------------------------------------------------------ |
-| `main.py`            | FastAPI app, health endpoint, router registration            |
-| `routers/text.py`    | `/text/polish` and `/text/summarize` endpoints               |
-| `routers/rag.py`     | `/rag/embed`, `/rag/ask`, `DELETE /rag/embed/{id}` endpoints |
-| `gemini_client.py`   | Thin wrapper around `google-genai` SDK                       |
-| `embeddings.py`      | Gemini text-embedding-004 wrapper for vector generation      |
-| `chunker.py`         | Text splitting into overlapping chunks                       |
-| `supabase_client.py` | Supabase service role client for `document_chunks` table     |
-| `prompts.py`         | AI prompt constants                                          |
-| `dependencies.py`    | `verify_api_key` dependency for auth                         |
+| File                 | Purpose                                                                                        |
+| -------------------- | ---------------------------------------------------------------------------------------------- |
+| `main.py`            | FastAPI app, health endpoint, router registration                                              |
+| `routers/text.py`    | `/text/polish` and `/text/summarize` endpoints                                                 |
+| `routers/rag.py`     | `/rag/embed`, `/rag/ask`, `DELETE /rag/embed/{id}` endpoints                                   |
+| `gemini_client.py`   | `generate` (blocking) and `generate_stream` (yields chunks) wrappers around `google-genai` SDK |
+| `embeddings.py`      | Gemini text-embedding-004 wrapper for vector generation                                        |
+| `chunker.py`         | Text splitting into overlapping chunks                                                         |
+| `supabase_client.py` | Supabase service role client for `document_chunks` table                                       |
+| `prompts.py`         | AI prompt constants                                                                            |
+| `dependencies.py`    | `verify_api_key` dependency for auth                                                           |
 
 ## Dependencies
 

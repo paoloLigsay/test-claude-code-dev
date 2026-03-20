@@ -11,9 +11,10 @@ Client Component. Main dashboard layout using `react-resizable-panels`.
 - Props: `{ initialFolders: Folder[] }` — SSR-fetched root folders.
 - Left panel (20%): `Sidebar` with folder tree.
 - Right panel (80%): `FileUpload` bar + `FileViewer`.
-- Manages state: `selectedDocument`, `selectedFolderId`, `moveTarget`, `searchOpen`, `revealPath`.
+- Manages state: `selectedDocument`, `selectedFolderId`, `moveTarget`, `searchOpen`, `chatOpen`, `revealPath`.
 - Renders `MoveDialog` when `moveTarget` is set.
 - Renders `SearchModal` (Cmd+K to open).
+- "Ask AI" toggle button in the toolbar opens/closes `ChatPanel` as a third resizable panel (25% default, 15–40% range). When open, the file viewer panel shrinks from 80% to 55%.
 - `revealPath` propagated to tree to auto-expand folders on search selection.
 
 ### Sidebar (`sidebar.tsx`)
@@ -68,6 +69,9 @@ Client Component. Right panel file preview and editor.
 - Text files are inline-editable. Shows "Save" button when content is dirty. "(unsaved)" indicator in file size area.
 - Auto-saves via ref when switching documents (called by DashboardShell).
 - Shows download button and file size.
+- "Polish" button sends text to AI service for grammar/clarity improvements. Disabled when content is dirty. Overwrites file in Storage on success and updates displayed content via `queryClient.setQueryData`.
+- "Summarize" button sends text to AI service and displays summary in a `Modal`. Read-only — does not modify the file. Dismissed by closing the modal.
+- Both AI buttons are hidden for non-`text/*` MIME types and disabled when content has unsaved edits.
 - "Share" button (Globe icon) opens a modal with public/private toggle and shareable URL with copy button. Calls `toggleDocumentPublic` Server Action via dynamic import.
 - Empty state when no document selected.
 
@@ -97,6 +101,22 @@ Client Component. Cmd+K search overlay.
 - Results grouped by type (Folders, Files), 10 max each.
 - Keyboard navigation: Arrow keys, Enter to select, Escape to close.
 - Clicking a result triggers the appropriate callback and closes the modal.
+
+## AI Components
+
+### ChatPanel (`chat-panel.tsx`)
+
+Client Component. Collapsible right panel for cross-document RAG Q&A.
+
+- No props — manages its own message state internally.
+- Header: "Ask AI" title with subtitle.
+- Message area: renders `MessageBubble` for each message in history. Empty state shows a `FileText` icon with prompt text.
+- Each assistant message can include source attribution via a collapsible `SourceList` (shows unique document count, expands to show chunk snippets).
+- Loading state: animated dot indicators while waiting for AI response.
+- Input form: `Input` + `Send` icon button. Disabled while a request is in-flight.
+- Uses `useTransition` for non-blocking AI calls. Dynamically imports `askDocuments` Server Action.
+- Chat history is ephemeral (React state, cleared on page refresh).
+- Types: `ChatMessage` and `ChatSource` from `types/index.ts`.
 
 ## UI Primitives (`components/ui/`)
 

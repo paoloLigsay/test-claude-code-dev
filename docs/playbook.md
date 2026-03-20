@@ -28,16 +28,16 @@ Supabase Storage for file upload/retrieval.
 
 ## Phase 4: AI Integration
 
-Gemini API for AI-powered document features.
+Python FastAPI microservice (`services/ai/`) handles all AI processing via Gemini API.
 
-1. Client utility: `utils/gemini/client.ts` — initializes `GoogleGenerativeAI`, exports `getModel()`.
-2. Prompt constants: `utils/gemini/prompts.ts` — all AI prompts as named exports.
-3. AI Server Actions in `app/dashboard/ai-actions.ts` — separated from file/folder actions by domain.
+1. Next.js Server Actions in `app/dashboard/ai-actions.ts` call the Python service over HTTP.
+2. Service-to-service auth via shared `INTERNAL_API_KEY` header.
+3. See `docs/features/ai-service.md` for endpoints, setup, and troubleshooting.
 
 ## Security & RLS
 
 - Never expose `SUPABASE_SERVICE_ROLE_KEY` to client environment.
-- Never expose `GEMINI_API_KEY` to client environment (no `NEXT_PUBLIC_` prefix).
+- Never expose `INTERNAL_API_KEY` to client environment (no `NEXT_PUBLIC_` prefix).
 - All user-uploaded files tied to authenticated user UUID in DB and storage policies.
 - Write all client/server code assuming RLS is enforced at DB layer.
 - The server Supabase client uses the anon key with user session cookies — all operations go through RLS. No service role bypass.

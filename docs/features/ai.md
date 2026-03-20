@@ -69,6 +69,29 @@ Ask questions across all your documents. Uses pgvector for semantic search and G
 - `embedDocument(documentId, storagePath, mimeType)` — downloads file content, sends to AI service for chunking and embedding. Called fire-and-forget from `uploadDocument` and `saveFileContent`.
 - `askDocuments(question)` — gets user's document IDs, calls AI service for RAG search + answer. Returns `{ data: { answer, sources } }` or `{ error }`.
 
+## How Server Actions Call the AI Service
+
+All AI Server Actions use a shared `callAIService` helper for simple text-in/text-out endpoints (`/text/polish`, `/text/summarize`). RAG endpoints (`/rag/embed`, `/rag/ask`) use direct `fetch` calls with custom request bodies.
+
+### Common Pattern
+
+```
+const response = await fetch(`${AI_SERVICE_URL}${endpoint}`, {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "x-api-key": INTERNAL_API_KEY,
+  },
+  body: JSON.stringify({ ... }),
+});
+```
+
+- `AI_SERVICE_URL` and `INTERNAL_API_KEY` are read from server-side env vars.
+- Every request includes the `x-api-key` header for service-to-service auth.
+- On non-OK responses, the action reads `detail` from the JSON body for error messages.
+- Every exported action authenticates the user via `supabase.auth.getUser()` before calling the AI service.
+- Return shape: `{ error: string }` on failure, `{ data: ... }` or `{ success: true }` on success.
+
 ## Components
 
 - `FileViewer` (`components/file-viewer.tsx`) — renders "Summarize" and "Polish" buttons next to the Download button for text files. Both use `useTransition` for loading state and are disabled when content is dirty. Summary is displayed in a `Modal`.
