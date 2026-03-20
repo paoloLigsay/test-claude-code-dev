@@ -28,7 +28,7 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-neutral-700 rounded-full;
+    @apply rounded-full bg-neutral-700;
   }
 
   ::-webkit-scrollbar-thumb:hover {

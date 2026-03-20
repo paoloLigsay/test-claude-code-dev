@@ -3,12 +3,9 @@ import { type ButtonHTMLAttributes, type ReactNode, forwardRef } from "react";
 const variantStyles = {
   default:
     "bg-neutral-700 text-neutral-200 hover:bg-neutral-600 border border-neutral-600",
-  primary:
-    "bg-brand text-white hover:bg-brand-hover",
-  ghost:
-    "text-neutral-400 hover:text-neutral-200 hover:bg-white/5",
-  destructive:
-    "text-red-400 hover:text-red-300 hover:bg-red-500/10",
+  primary: "bg-brand text-white hover:bg-brand-hover",
+  ghost: "text-neutral-400 hover:text-neutral-200 hover:bg-white/5",
+  destructive: "text-red-400 hover:text-red-300 hover:bg-red-500/10",
 } as const;
 
 const sizeStyles = {
@@ -24,11 +21,21 @@ type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 export const Button = forwardRef<HTMLButtonElement, Props>(
-  ({ variant = "default", size = "md", icon, children, className = "", ...props }, ref) => {
+  (
+    {
+      variant = "default",
+      size = "md",
+      icon,
+      children,
+      className = "",
+      ...props
+    },
+    ref
+  ) => {
     return (
       <button
         ref={ref}
-        className={`inline-flex items-center justify-center rounded-lg font-medium transition-colors disabled:opacity-50 disabled:pointer-events-none ${variantStyles[variant]} ${sizeStyles[size]} ${className}`}
+        className={`inline-flex items-center justify-center rounded-lg font-medium transition-colors disabled:pointer-events-none disabled:opacity-50 ${variantStyles[variant]} ${sizeStyles[size]} ${className}`}
         {...props}
       >
         {icon}

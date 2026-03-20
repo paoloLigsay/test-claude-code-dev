@@ -23,7 +23,12 @@ type MenuItemProps = {
   onClick: () => void;
 };
 
-export function MenuItem({ icon, children, variant = "default", onClick }: MenuItemProps) {
+export function MenuItem({
+  icon,
+  children,
+  variant = "default",
+  onClick,
+}: MenuItemProps) {
   const colorClass =
     variant === "destructive"
       ? "text-red-400 hover:bg-red-500/10"
@@ -32,7 +37,7 @@ export function MenuItem({ icon, children, variant = "default", onClick }: MenuI
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-2 w-full px-3 py-1.5 text-sm transition-colors ${colorClass}`}
+      className={`flex w-full items-center gap-2 px-3 py-1.5 text-sm transition-colors ${colorClass}`}
     >
       {icon}
       {children}

@@ -11,12 +11,12 @@ npm run dev
 
 ## Commands
 
-| Command | Description |
-|---|---|
-| `npm run dev` | Start dev server |
-| `npm run build` | Production build |
-| `npm run lint` | ESLint |
-| `npx tsc --noEmit` | Type check |
+| Command            | Description      |
+| ------------------ | ---------------- |
+| `npm run dev`      | Start dev server |
+| `npm run build`    | Production build |
+| `npm run lint`     | ESLint           |
+| `npx tsc --noEmit` | Type check       |
 
 ## Environment Variables
 

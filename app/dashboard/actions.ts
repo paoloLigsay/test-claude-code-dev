@@ -42,19 +42,13 @@ export async function deleteFolder(folderId: string) {
     await supabase.storage.from("documents").remove(storagePaths);
   }
 
-  const { error } = await supabase
-    .from("folders")
-    .delete()
-    .eq("id", folderId);
+  const { error } = await supabase.from("folders").delete().eq("id", folderId);
 
   if (error) return { error: error.message };
   return { success: true };
 }
 
-export async function moveFolder(
-  folderId: string,
-  newParentId: string | null
-) {
+export async function moveFolder(folderId: string, newParentId: string | null) {
   const supabase = await createClient();
 
   // Prevent moving a folder into itself or its own descendants
@@ -108,13 +102,18 @@ export async function uploadDocument(formData: FormData) {
     .single();
 
   if (error) return { error: error.message };
+
+  // Fire-and-forget: embed text files for RAG search
+  if (data.mime_type.startsWith("text/")) {
+    import("@/app/dashboard/ai-actions").then(({ embedDocument }) => {
+      embedDocument(data.id, data.storage_path, data.mime_type);
+    });
+  }
+
   return { data };
 }
 
-export async function deleteDocument(
-  documentId: string,
-  storagePath: string
-) {
+export async function deleteDocument(documentId: string, storagePath: string) {
   const supabase = await createClient();
 
   await supabase.storage.from("documents").remove([storagePath]);
@@ -128,10 +127,7 @@ export async function deleteDocument(
   return { success: true };
 }
 
-export async function moveDocument(
-  documentId: string,
-  newFolderId: string
-) {
+export async function moveDocument(documentId: string, newFolderId: string) {
   const supabase = await createClient();
 
   const { error } = await supabase
@@ -154,11 +150,11 @@ async function checkIsDescendant(
   while (currentId) {
     if (currentId === folderId) return true;
 
-    const { data } = await supabase
+    const { data } = (await supabase
       .from("folders")
       .select("parent_id")
       .eq("id", currentId)
-      .single() as { data: { parent_id: string | null } | null };
+      .single()) as { data: { parent_id: string | null } | null };
 
     currentId = data?.parent_id ?? null;
   }
@@ -208,11 +204,14 @@ export async function getFolderPath(folderId: string): Promise<string[]> {
 
   while (currentId && depth++ < MAX_DEPTH) {
     path.unshift(currentId);
-    const row = await supabase
+    const row = (await supabase
       .from("folders")
       .select("parent_id")
       .eq("id", currentId)
-      .single() as { data: { parent_id: string | null } | null; error: unknown };
+      .single()) as {
+      data: { parent_id: string | null } | null;
+      error: unknown;
+    };
 
     if (row.error || !row.data) break;
 
@@ -222,10 +221,103 @@ export async function getFolderPath(folderId: string): Promise<string[]> {
   return path;
 }
 
+export async function createEmptyFile(name: string, folderId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "Not authenticated" };
+
+  const ext = name.includes(".") ? name.split(".").pop() : "txt";
+  const storagePath = `${user.id}/${crypto.randomUUID()}.${ext}`;
+
+  const emptyBlob = new Blob([""], { type: "text/plain" });
+  const { error: uploadError } = await supabase.storage
+    .from("documents")
+    .upload(storagePath, emptyBlob);
+
+  if (uploadError) return { error: uploadError.message };
+
+  const { data, error } = await supabase
+    .from("documents")
+    .insert({
+      user_id: user.id,
+      folder_id: folderId,
+      name,
+      storage_path: storagePath,
+      mime_type: "text/plain",
+      size_bytes: 0,
+    })
+    .select()
+    .single();
+
+  if (error) return { error: error.message };
+  return { data };
+}
+
+export async function saveFileContent(
+  documentId: string,
+  storagePath: string,
+  content: string
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "Not authenticated" };
+
+  const blob = new Blob([content], { type: "text/plain" });
+
+  const { error: uploadError } = await supabase.storage
+    .from("documents")
+    .upload(storagePath, blob, { upsert: true });
+
+  if (uploadError) return { error: uploadError.message };
+
+  const { error } = await supabase
+    .from("documents")
+    .update({
+      size_bytes: new TextEncoder().encode(content).length,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", documentId)
+    .eq("user_id", user.id);
+
+  if (error) return { error: error.message };
+
+  // Fire-and-forget: re-embed for RAG search
+  import("@/app/dashboard/ai-actions").then(({ embedDocument }) => {
+    embedDocument(documentId, storagePath, "text/plain");
+  });
+
+  return { success: true };
+}
+
+export async function toggleDocumentPublic(
+  documentId: string,
+  isPublic: boolean
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "Not authenticated" };
+
+  const { error } = await supabase
+    .from("documents")
+    .update({ is_public: isPublic, updated_at: new Date().toISOString() })
+    .eq("id", documentId)
+    .eq("user_id", user.id);
+
+  if (error) return { error: error.message };
+  return { data: { isPublic } };
+}
+
 // Recursively collect all document storage paths under a folder
-async function collectSubtreeStoragePaths(
-  folderId: string
-): Promise<string[]> {
+async function collectSubtreeStoragePaths(folderId: string): Promise<string[]> {
   const supabase = await createClient();
   const paths: string[] = [];
 

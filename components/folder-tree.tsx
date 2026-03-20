@@ -28,7 +28,11 @@ type Props = {
   selectedFolderId: string | null;
   onSelectDocument: (doc: Document) => void;
   onFolderMutated: () => void;
-  onRequestMove: (type: "folder" | "document", id: string, name: string) => void;
+  onRequestMove: (
+    type: "folder" | "document",
+    id: string,
+    name: string
+  ) => void;
   revealPath: string[];
 };
 
@@ -43,7 +47,10 @@ export function FolderTree({
   onRequestMove,
   revealPath,
 }: Props) {
-  const [drag, setDrag] = useState<DragState>({ draggedId: null, draggedType: null });
+  const [drag, setDrag] = useState<DragState>({
+    draggedId: null,
+    draggedType: null,
+  });
   const queryClient = useQueryClient();
 
   async function handleRootDrop(e: React.DragEvent) {
@@ -63,7 +70,9 @@ export function FolderTree({
     const { moveFolder } = await import("@/app/dashboard/actions");
     const result = await moveFolder(id, null);
     if (!result.error) {
-      queryClient.invalidateQueries({ queryKey: ["folder-contents", parentFolderId] });
+      queryClient.invalidateQueries({
+        queryKey: ["folder-contents", parentFolderId],
+      });
       queryClient.invalidateQueries({ queryKey: ["root-folders"] });
       onFolderMutated();
     }
@@ -71,7 +80,7 @@ export function FolderTree({
 
   if (folders.length === 0) {
     return (
-      <p className="text-sm text-neutral-500 px-4 py-2">
+      <p className="px-4 py-2 text-sm text-neutral-500">
         No folders yet. Create one to get started.
       </p>
     );

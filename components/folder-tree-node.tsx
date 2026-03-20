@@ -9,6 +9,7 @@ import {
   FileText,
   MoreHorizontal,
   FolderPlus,
+  FilePlus,
   Trash2,
   PenLine,
   Move,
@@ -37,7 +38,11 @@ type Props = {
   selectedFolderId: string | null;
   onSelectDocument: (doc: Document) => void;
   onFolderMutated: () => void;
-  onRequestMove: (type: "folder" | "document", id: string, name: string) => void;
+  onRequestMove: (
+    type: "folder" | "document",
+    id: string,
+    name: string
+  ) => void;
   revealPath: string[];
 };
 
@@ -58,6 +63,8 @@ export function FolderTreeNode({
   const [renameValue, setRenameValue] = useState(folder.name);
   const [isCreatingSubfolder, setIsCreatingSubfolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
+  const [isCreatingFile, setIsCreatingFile] = useState(false);
+  const [newFileName, setNewFileName] = useState("");
   const [isDragOver, setIsDragOver] = useState(false);
   const queryClient = useQueryClient();
   const { drag, setDrag } = useDragContext();
@@ -73,14 +80,22 @@ export function FolderTreeNode({
   const prevRevealPathRef = useRef<string[]>([]);
 
   useEffect(() => {
-    if (isInRevealPath && !isExpanded && revealPath !== prevRevealPathRef.current) {
+    if (
+      isInRevealPath &&
+      !isExpanded &&
+      revealPath !== prevRevealPathRef.current
+    ) {
       setIsExpanded(true);
     }
     prevRevealPathRef.current = revealPath;
   }, [revealPath, isInRevealPath]);
 
   useEffect(() => {
-    if (isSelected && revealPath.length > 0 && revealPath[revealPath.length - 1] === folder.id) {
+    if (
+      isSelected &&
+      revealPath.length > 0 &&
+      revealPath[revealPath.length - 1] === folder.id
+    ) {
       nodeRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
     }
   }, [isSelected, revealPath]);
@@ -93,7 +108,11 @@ export function FolderTreeNode({
     e.dataTransfer.effectAllowed = "move";
     e.dataTransfer.setData(
       DRAG_MIME,
-      JSON.stringify({ type: "folder", id: folder.id, parentFolderId: folder.parent_id })
+      JSON.stringify({
+        type: "folder",
+        id: folder.id,
+        parentFolderId: folder.parent_id,
+      })
     );
     setDrag({ draggedId: folder.id, draggedType: "folder" });
   }
@@ -119,7 +138,8 @@ export function FolderTreeNode({
   }
 
   function handleDragLeave(e: React.DragEvent) {
-    if (e.relatedTarget && e.currentTarget.contains(e.relatedTarget as Node)) return;
+    if (e.relatedTarget && e.currentTarget.contains(e.relatedTarget as Node))
+      return;
     setIsDragOver(false);
   }
 
@@ -141,11 +161,15 @@ export function FolderTreeNode({
       const result = await moveFolder(id, folder.id);
       if (!result.error) {
         if (parentFolderId) {
-          queryClient.invalidateQueries({ queryKey: ["folder-contents", parentFolderId] });
+          queryClient.invalidateQueries({
+            queryKey: ["folder-contents", parentFolderId],
+          });
         } else {
           queryClient.invalidateQueries({ queryKey: ["root-folders"] });
         }
-        queryClient.invalidateQueries({ queryKey: ["folder-contents", folder.id] });
+        queryClient.invalidateQueries({
+          queryKey: ["folder-contents", folder.id],
+        });
         queryClient.invalidateQueries({ queryKey: ["root-folders"] });
         onFolderMutated();
       }
@@ -154,9 +178,13 @@ export function FolderTreeNode({
       const result = await moveDocument(id, folder.id);
       if (!result.error) {
         if (parentFolderId) {
-          queryClient.invalidateQueries({ queryKey: ["folder-contents", parentFolderId] });
+          queryClient.invalidateQueries({
+            queryKey: ["folder-contents", parentFolderId],
+          });
         }
-        queryClient.invalidateQueries({ queryKey: ["folder-contents", folder.id] });
+        queryClient.invalidateQueries({
+          queryKey: ["folder-contents", folder.id],
+        });
       }
     }
   }
@@ -215,8 +243,28 @@ export function FolderTreeNode({
     if (!result.error) {
       setNewFolderName("");
       setIsCreatingSubfolder(false);
-      queryClient.invalidateQueries({ queryKey: ["folder-contents", folder.id] });
+      queryClient.invalidateQueries({
+        queryKey: ["folder-contents", folder.id],
+      });
       setIsExpanded(true);
+    }
+  }
+
+  async function handleCreateFile() {
+    if (!newFileName.trim()) {
+      setIsCreatingFile(false);
+      return;
+    }
+    const { createEmptyFile } = await import("@/app/dashboard/actions");
+    const result = await createEmptyFile(newFileName.trim(), folder.id);
+    if (!result.error && result.data) {
+      setNewFileName("");
+      setIsCreatingFile(false);
+      queryClient.invalidateQueries({
+        queryKey: ["folder-contents", folder.id],
+      });
+      setIsExpanded(true);
+      onSelectDocument(result.data);
     }
   }
 
@@ -250,7 +298,7 @@ export function FolderTreeNode({
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        className={`group flex items-center gap-1 py-1 px-2 rounded-lg cursor-pointer transition-colors ${
+        className={`group flex cursor-pointer items-center gap-1 rounded-lg px-2 py-1 transition-colors ${
           isDragOver
             ? "bg-brand-muted"
             : isSelected
@@ -261,20 +309,23 @@ export function FolderTreeNode({
       >
         <button
           onClick={toggleExpand}
-          className="shrink-0 w-4 h-4 flex items-center justify-center"
+          className="flex h-4 w-4 shrink-0 items-center justify-center"
         >
           {isExpanded ? (
-            <ChevronDown className="w-3.5 h-3.5 text-neutral-500" />
+            <ChevronDown className="h-3.5 w-3.5 text-neutral-500" />
           ) : (
-            <ChevronRight className="w-3.5 h-3.5 text-neutral-500" />
+            <ChevronRight className="h-3.5 w-3.5 text-neutral-500" />
           )}
         </button>
 
-        <button onClick={toggleExpand} className="flex items-center gap-1.5 flex-1 min-w-0">
+        <button
+          onClick={toggleExpand}
+          className="flex min-w-0 flex-1 items-center gap-1.5"
+        >
           {isExpanded ? (
-            <FolderOpen className="w-4 h-4 text-neutral-400 shrink-0" />
+            <FolderOpen className="h-4 w-4 shrink-0 text-neutral-400" />
           ) : (
-            <FolderIcon className="w-4 h-4 text-neutral-400 shrink-0" />
+            <FolderIcon className="h-4 w-4 shrink-0 text-neutral-400" />
           )}
           {isRenaming ? (
             <Input
@@ -290,7 +341,9 @@ export function FolderTreeNode({
               onClick={(e) => e.stopPropagation()}
             />
           ) : (
-            <span className="text-sm text-neutral-300 truncate">{folder.name}</span>
+            <span className="truncate text-sm text-neutral-300">
+              {folder.name}
+            </span>
           )}
         </button>
 
@@ -302,12 +355,12 @@ export function FolderTreeNode({
             }}
             className="opacity-0 group-hover:opacity-100"
           >
-            <MoreHorizontal className="w-3.5 h-3.5" />
+            <MoreHorizontal className="h-3.5 w-3.5" />
           </IconButton>
           {showMenu && (
             <DropdownMenu onMouseLeave={() => setShowMenu(false)}>
               <MenuItem
-                icon={<FolderPlus className="w-3.5 h-3.5" />}
+                icon={<FolderPlus className="h-3.5 w-3.5" />}
                 onClick={() => {
                   setShowMenu(false);
                   setIsCreatingSubfolder(true);
@@ -317,7 +370,17 @@ export function FolderTreeNode({
                 New subfolder
               </MenuItem>
               <MenuItem
-                icon={<PenLine className="w-3.5 h-3.5" />}
+                icon={<FilePlus className="h-3.5 w-3.5" />}
+                onClick={() => {
+                  setShowMenu(false);
+                  setIsCreatingFile(true);
+                  setIsExpanded(true);
+                }}
+              >
+                New file
+              </MenuItem>
+              <MenuItem
+                icon={<PenLine className="h-3.5 w-3.5" />}
                 onClick={() => {
                   setShowMenu(false);
                   setIsRenaming(true);
@@ -327,7 +390,7 @@ export function FolderTreeNode({
                 Rename
               </MenuItem>
               <MenuItem
-                icon={<Move className="w-3.5 h-3.5" />}
+                icon={<Move className="h-3.5 w-3.5" />}
                 onClick={() => {
                   setShowMenu(false);
                   onRequestMove("folder", folder.id, folder.name);
@@ -336,7 +399,7 @@ export function FolderTreeNode({
                 Move
               </MenuItem>
               <MenuItem
-                icon={<Trash2 className="w-3.5 h-3.5" />}
+                icon={<Trash2 className="h-3.5 w-3.5" />}
                 variant="destructive"
                 onClick={() => {
                   setShowMenu(false);
@@ -354,7 +417,7 @@ export function FolderTreeNode({
         <div>
           {loading && (
             <p
-              className="text-xs text-neutral-500 py-1"
+              className="py-1 text-xs text-neutral-500"
               style={{ paddingLeft: `${(depth + 1) * 16 + 24}px` }}
             >
               Loading...
@@ -366,7 +429,7 @@ export function FolderTreeNode({
               className="flex items-center gap-1.5 py-1"
               style={{ paddingLeft: `${(depth + 1) * 16 + 24}px` }}
             >
-              <FolderIcon className="w-4 h-4 text-neutral-500 shrink-0" />
+              <FolderIcon className="h-4 w-4 shrink-0 text-neutral-500" />
               <Input
                 value={newFolderName}
                 onChange={(e) => setNewFolderName(e.target.value)}
@@ -376,6 +439,28 @@ export function FolderTreeNode({
                   if (e.key === "Escape") setIsCreatingSubfolder(false);
                 }}
                 placeholder="Folder name"
+                autoFocus
+                inputSize="sm"
+                className="max-w-[160px]"
+              />
+            </div>
+          )}
+
+          {isCreatingFile && (
+            <div
+              className="flex items-center gap-1.5 py-1"
+              style={{ paddingLeft: `${(depth + 1) * 16 + 24}px` }}
+            >
+              <FileText className="h-4 w-4 shrink-0 text-neutral-500" />
+              <Input
+                value={newFileName}
+                onChange={(e) => setNewFileName(e.target.value)}
+                onBlur={handleCreateFile}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleCreateFile();
+                  if (e.key === "Escape") setIsCreatingFile(false);
+                }}
+                placeholder="filename.txt"
                 autoFocus
                 inputSize="sm"
                 className="max-w-[160px]"
@@ -393,7 +478,9 @@ export function FolderTreeNode({
               selectedFolderId={selectedFolderId}
               onSelectDocument={onSelectDocument}
               onFolderMutated={() => {
-                queryClient.invalidateQueries({ queryKey: ["folder-contents", folder.id] });
+                queryClient.invalidateQueries({
+                  queryKey: ["folder-contents", folder.id],
+                });
                 onFolderMutated();
               }}
               onRequestMove={onRequestMove}
@@ -410,14 +497,18 @@ export function FolderTreeNode({
                 e.dataTransfer.effectAllowed = "move";
                 e.dataTransfer.setData(
                   DRAG_MIME,
-                  JSON.stringify({ type: "document", id: doc.id, parentFolderId: folder.id })
+                  JSON.stringify({
+                    type: "document",
+                    id: doc.id,
+                    parentFolderId: folder.id,
+                  })
                 );
                 setDrag({ draggedId: doc.id, draggedType: "document" });
               }}
               onDragEnd={() => {
                 setDrag({ draggedId: null, draggedType: null });
               }}
-              className={`group flex items-center gap-1.5 py-1 px-2 rounded-lg cursor-pointer transition-colors ${
+              className={`group flex cursor-pointer items-center gap-1.5 rounded-lg px-2 py-1 transition-colors ${
                 selectedDocumentId === doc.id
                   ? "bg-white/[0.06]"
                   : "hover:bg-white/[0.04]"
@@ -425,18 +516,18 @@ export function FolderTreeNode({
               style={{ paddingLeft: `${(depth + 1) * 16 + 24}px` }}
               onClick={() => onSelectDocument(doc)}
             >
-              <FileText className="w-4 h-4 text-neutral-500 shrink-0" />
-              <span className="text-sm text-neutral-400 truncate flex-1">
+              <FileText className="h-4 w-4 shrink-0 text-neutral-500" />
+              <span className="flex-1 truncate text-sm text-neutral-400">
                 {doc.name}
               </span>
-              <div className="opacity-0 group-hover:opacity-100 flex gap-0.5">
+              <div className="flex gap-0.5 opacity-0 group-hover:opacity-100">
                 <IconButton
                   onClick={(e) => {
                     e.stopPropagation();
                     onRequestMove("document", doc.id, doc.name);
                   }}
                 >
-                  <Move className="w-3 h-3" />
+                  <Move className="h-3 w-3" />
                 </IconButton>
                 <IconButton
                   variant="destructive"
@@ -445,7 +536,7 @@ export function FolderTreeNode({
                     handleDeleteDocument(doc);
                   }}
                 >
-                  <Trash2 className="w-3 h-3" />
+                  <Trash2 className="h-3 w-3" />
                 </IconButton>
               </div>
             </div>
@@ -456,7 +547,7 @@ export function FolderTreeNode({
             contents.documents.length === 0 &&
             !isCreatingSubfolder && (
               <p
-                className="text-xs text-neutral-600 py-1"
+                className="py-1 text-xs text-neutral-600"
                 style={{ paddingLeft: `${(depth + 1) * 16 + 24}px` }}
               >
                 Empty folder
