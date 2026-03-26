@@ -316,6 +316,101 @@ export async function toggleDocumentPublic(
   return { data: { isPublic } };
 }
 
+export async function duplicateFolder(folderId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { error: "Not authenticated" };
+
+  const { data: original } = await supabase
+    .from("folders")
+    .select("*")
+    .eq("id", folderId)
+    .single();
+
+  if (!original) return { error: "Folder not found" };
+
+  const { data: newRoot, error: rootError } = await supabase
+    .from("folders")
+    .insert({
+      name: `${original.name} (copy)`,
+      parent_id: original.parent_id,
+      user_id: user.id,
+    })
+    .select()
+    .single();
+
+  if (rootError) return { error: rootError.message };
+
+  await copyFolderContents(folderId, newRoot.id, user.id);
+
+  return { data: newRoot };
+}
+
+async function copyFolderContents(
+  sourceFolderId: string,
+  targetFolderId: string,
+  userId: string
+) {
+  const supabase = await createClient();
+
+  const { data: docs } = await supabase
+    .from("documents")
+    .select("*")
+    .eq("folder_id", sourceFolderId);
+
+  if (docs) {
+    for (const doc of docs) {
+      const ext = doc.name.split(".").pop() || "bin";
+      const newStoragePath = `${userId}/${crypto.randomUUID()}.${ext}`;
+
+      const { data: fileData } = await supabase.storage
+        .from("documents")
+        .download(doc.storage_path);
+
+      if (fileData) {
+        await supabase.storage
+          .from("documents")
+          .upload(newStoragePath, fileData);
+
+        await supabase.from("documents").insert({
+          user_id: userId,
+          folder_id: targetFolderId,
+          name: doc.name,
+          storage_path: newStoragePath,
+          mime_type: doc.mime_type,
+          size_bytes: doc.size_bytes,
+        });
+      }
+    }
+  }
+
+  const { data: subfolders } = await supabase
+    .from("folders")
+    .select("*")
+    .eq("parent_id", sourceFolderId);
+
+  if (subfolders) {
+    for (const sub of subfolders) {
+      const { data: newSub } = await supabase
+        .from("folders")
+        .insert({
+          name: sub.name,
+          parent_id: targetFolderId,
+          user_id: userId,
+        })
+        .select()
+        .single();
+
+      if (newSub) {
+        await copyFolderContents(sub.id, newSub.id, userId);
+      }
+    }
+  }
+}
+
 // Recursively collect all document storage paths under a folder
 async function collectSubtreeStoragePaths(folderId: string): Promise<string[]> {
   const supabase = await createClient();
