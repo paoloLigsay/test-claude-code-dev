@@ -4,5 +4,18 @@
       "WebFetch(domain:cursor.com)",
       "Bash(npx skills find \"drag and drop react\")"
     ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/ralph-loop.sh",
+            "timeout": 300
+          }
+        ]
+      }
+    ]
   }
 }

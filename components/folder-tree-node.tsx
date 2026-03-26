@@ -13,6 +13,7 @@ import {
   Trash2,
   PenLine,
   Move,
+  Copy,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useFolderContents } from "@/hooks/use-folder-contents";
@@ -268,6 +269,18 @@ export function FolderTreeNode({
     }
   }
 
+  async function handleDuplicate() {
+    const { duplicateFolder } = await import("@/app/dashboard/actions");
+    const result = await duplicateFolder(folder.id);
+    if (!result.error) {
+      const parentQueryKey = folder.parent_id
+        ? ["folder-contents", folder.parent_id]
+        : ["root-folders"];
+      queryClient.invalidateQueries({ queryKey: parentQueryKey });
+      onFolderMutated();
+    }
+  }
+
   async function handleDeleteDocument(doc: Document) {
     const queryKey = ["folder-contents", folder.id];
     const previousData = queryClient.getQueryData<FolderContents>(queryKey);
@@ -388,6 +401,15 @@ export function FolderTreeNode({
                 }}
               >
                 Rename
+              </MenuItem>
+              <MenuItem
+                icon={<Copy className="h-3.5 w-3.5" />}
+                onClick={() => {
+                  setShowMenu(false);
+                  handleDuplicate();
+                }}
+              >
+                Duplicate
               </MenuItem>
               <MenuItem
                 icon={<Move className="h-3.5 w-3.5" />}
